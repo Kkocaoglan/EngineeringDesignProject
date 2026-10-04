@@ -14,7 +14,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Modeller eklendikçe burada import edilir ki autogenerate onları görsün:
-# import app.models  # noqa: F401
+import app.models  # noqa: E402, F401
 
 target_metadata = Base.metadata
 
