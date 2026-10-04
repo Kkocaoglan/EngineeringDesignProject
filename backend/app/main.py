@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.auth.router import router as auth_router
 from app.config import get_settings
 from app.errors import AppError, app_error_handler
 
@@ -37,6 +38,9 @@ async def origin_check(request: Request, call_next):
             content={"error": {"code": "BAD_ORIGIN", "message": "İzin verilmeyen kaynak."}},
         )
     return await call_next(request)
+
+
+app.include_router(auth_router)
 
 
 @app.get("/health", tags=["system"])
