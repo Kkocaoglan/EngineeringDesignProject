@@ -45,8 +45,8 @@ jobs:
       - run: pip install -r requirements.txt -r requirements-dev.txt
       - name: Lint
         run: ruff check .
-      - name: Migration en fazla bir head mi?
-        run: test "$(alembic heads | wc -l)" -le 1
+      - name: Migration tek head mi?
+        run: test "$(alembic heads | wc -l)" -eq 1
       - name: Migration ileri-geri-ileri
         run: alembic upgrade head && alembic downgrade base && alembic upgrade head
       - name: Testler
