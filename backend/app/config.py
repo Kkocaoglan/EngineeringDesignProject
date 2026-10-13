@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     # Testlerde "null": her istek kendi bağlantısını açar (event loop sorunlarını önler)
     db_pool: str = "default"
 
+    @property
+    def symbol_list(self) -> list[str]:
+        """SYMBOLS=BTCUSDT,ETHUSDT → ["BTCUSDT", "ETHUSDT"]"""
+        return [s.strip().upper() for s in self.symbols.split(",") if s.strip()]
+
 
 @lru_cache
 def get_settings() -> Settings:
