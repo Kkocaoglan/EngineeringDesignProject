@@ -1,4 +1,4 @@
-import requests
+import httpx
 import asyncio
 import websockets
 import json
@@ -8,7 +8,8 @@ def test_rest_api():
     print("--- REST API TESTİ BAŞLIYOR ---")
     url = "https://data-api.binance.vision/api/v3/exchangeInfo?symbol=BTCUSDT"
     try:
-        response = requests.get(url)
+        # requests yerine httpx kullanıldı ve 10 saniye zaman aşımı eklendi
+        response = httpx.get(url, timeout=10.0)
         print(f"Durum Kodu: {response.status_code}")
         if response.status_code == 200:
             data = response.json()
