@@ -79,6 +79,223 @@
         "title": "MeOut",
         "type": "object"
       },
+      "OrderIn": {
+        "properties": {
+          "expected_price": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{1,20}(\\.\\d{1,18})?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Price"
+          },
+          "quantity": {
+            "pattern": "^\\d{1,20}(\\.\\d{1,18})?$",
+            "title": "Quantity",
+            "type": "string"
+          },
+          "side": {
+            "enum": [
+              "BUY",
+              "SELL"
+            ],
+            "title": "Side",
+            "type": "string"
+          },
+          "symbol": {
+            "pattern": "^[A-Z0-9]{2,20}$",
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "side",
+          "quantity"
+        ],
+        "title": "OrderIn",
+        "type": "object"
+      },
+      "OrderOut": {
+        "properties": {
+          "cash_after": {
+            "title": "Cash After",
+            "type": "string"
+          },
+          "fee": {
+            "title": "Fee",
+            "type": "string"
+          },
+          "fill_price": {
+            "title": "Fill Price",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "string"
+          },
+          "quote": {
+            "$ref": "#/components/schemas/QuoteOut"
+          },
+          "side": {
+            "title": "Side",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "trade_id": {
+            "title": "Trade Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "trade_id",
+          "symbol",
+          "side",
+          "fill_price",
+          "quantity",
+          "fee",
+          "cash_after",
+          "quote"
+        ],
+        "title": "OrderOut",
+        "type": "object"
+      },
+      "QuoteOut": {
+        "properties": {
+          "ask": {
+            "title": "Ask",
+            "type": "string"
+          },
+          "bid": {
+            "title": "Bid",
+            "type": "string"
+          },
+          "received_at": {
+            "title": "Received At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bid",
+          "ask",
+          "received_at"
+        ],
+        "title": "QuoteOut",
+        "type": "object"
+      },
+      "TradeOut": {
+        "properties": {
+          "ask": {
+            "title": "Ask",
+            "type": "string"
+          },
+          "bid": {
+            "title": "Bid",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "fee": {
+            "title": "Fee",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "notional": {
+            "title": "Notional",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "price": {
+            "title": "Price",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "string"
+          },
+          "quote_received_at": {
+            "title": "Quote Received At",
+            "type": "string"
+          },
+          "realized_pnl": {
+            "title": "Realized Pnl",
+            "type": "string"
+          },
+          "side": {
+            "title": "Side",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "order_id",
+          "symbol",
+          "side",
+          "quantity",
+          "price",
+          "notional",
+          "fee",
+          "realized_pnl",
+          "bid",
+          "ask",
+          "quote_received_at",
+          "created_at"
+        ],
+        "title": "TradeOut",
+        "type": "object"
+      },
+      "TradePage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TradeOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "TradePage",
+        "type": "object"
+      },
       "UserOut": {
         "properties": {
           "email": {
@@ -312,6 +529,159 @@
         "summary": "Me",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/orders": {
+      "post": {
+        "operationId": "create_order_orders_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Order",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/trades": {
+      "get": {
+        "description": "Kullanıcının işlemleri, en yeniden eskiye. next_cursor ile sonraki sayfa istenir.",
+        "operationId": "list_trades_trades_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradePage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Trades",
+        "tags": [
+          "orders"
         ]
       }
     }
