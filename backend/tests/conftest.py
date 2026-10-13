@@ -7,7 +7,7 @@ from sqlalchemy import text
 from app.db import engine
 from app.main import app
 
-TABLES = "cash_entries, accounts, users"
+TABLES = "cash_entries, trades, orders, positions, assets, accounts, users"
 
 
 @pytest.fixture(autouse=True)
