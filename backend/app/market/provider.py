@@ -37,3 +37,11 @@ class QuoteStore:
 
     def snapshot(self) -> dict[str, Quote]:
         return dict(self._quotes)
+
+
+_default_store = QuoteStore()
+
+
+def get_quote_store() -> QuoteStore:
+    """FastAPI bağımlılığı ve süreç içi paylaşılan fiyat hafızası."""
+    return _default_store

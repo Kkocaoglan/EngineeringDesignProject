@@ -8,8 +8,10 @@
 - Yeniden bağlanma görev 3.4'tür; burada bağlantı koparsa run() döner/hata fırlatır.
 """
 
+import asyncio
 import json
 import logging
+import random
 from collections.abc import Callable, Sequence
 from datetime import datetime
 from decimal import Decimal
@@ -74,19 +76,74 @@ class BinanceProvider:
         self._clock = clock or SystemClock()
         self._store = store or QuoteStore()
         self._connect = connect
+        self._connected = False
+
+    @property
+    def is_connected(self) -> bool:
+        return self._connected
 
     async def run(self) -> None:
         """Tek oturum: bağlan, mesajları dinle, bağlantı kapanınca dön."""
         allowed = set(self._symbols)
-        async with self._connect(self._url, open_timeout=OPEN_TIMEOUT) as websocket:
-            logger.info("Binance bookTicker bağlantısı kuruldu: %s", ", ".join(self._symbols))
-            async for raw in websocket:
-                quote = parse_book_ticker(raw, self._clock.now(), allowed)
-                if quote is not None:
-                    self._store.update(quote)
+        try:
+            async with self._connect(self._url, open_timeout=OPEN_TIMEOUT) as websocket:
+                self._connected = True
+                logger.info("Binance bookTicker bağlantısı kuruldu: %s", ", ".join(self._symbols))
+                async for raw in websocket:
+                    quote = parse_book_ticker(raw, self._clock.now(), allowed)
+                    if quote is not None:
+                        self._store.update(quote)
+        finally:
+            self._connected = False
+
+    async def run_forever(
+        self,
+        base_delay: float = 1.0,
+        max_delay: float = 30.0,
+        max_retries: int | None = None,
+    ) -> None:
+        """Kopunca 1, 2, 4, 8... maks 30 sn (küçük rastgele gecikmeyle) bekleyip tekrar bağlanır.
+
+        Ping/pong'u websockets kütüphanesi otomatik yönetir (varsayılan ping_interval=20s).
+        """
+        attempt = 0
+        while True:
+            try:
+                await self.run()
+                attempt = 0
+                logger.warning("Binance WebSocket kapandı, tekrar bağlanılıyor...")
+            except asyncio.CancelledError:
+                self._connected = False
+                raise
+            except Exception as exc:
+                logger.warning("Binance WebSocket hatası: %r", exc)
+            finally:
+                self._connected = False
+
+            if max_retries is not None and attempt >= max_retries:
+                break
+
+            backoff = min(base_delay * (2 ** attempt), max_delay)
+            jitter = random.uniform(0.0, min(1.0, backoff * 0.1))
+            delay = backoff + jitter
+            attempt += 1
+            logger.info("Yeniden bağlanılıyor: %d. deneme, %.2fs bekleniyor...", attempt, delay)
+            await asyncio.sleep(delay)
 
     def get_quote(self, symbol: str) -> Quote | None:
         return self._store.get(symbol)
 
     def snapshot(self) -> dict[str, Quote]:
         return self._store.snapshot()
+
+
+_global_provider: BinanceProvider | None = None
+
+
+def get_binance_provider() -> BinanceProvider:
+    global _global_provider
+    if _global_provider is None:
+        from app.market.provider import get_quote_store
+
+        _global_provider = BinanceProvider(store=get_quote_store())
+    return _global_provider
