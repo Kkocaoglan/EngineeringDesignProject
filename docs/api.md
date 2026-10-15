@@ -27,13 +27,33 @@ GET /markets/{symbol}/candles?limit=300
 
 ## Emir (K1)
 POST /orders
-Header: Idempotency-Key: <uuid>   (yoksa 400)
+Header: Idempotency-Key: <uuid>   (her form açılışında yeni; tekrar denemede AYNI anahtar)
 Body: {"symbol":"BTCUSDT","side":"BUY","quantity":"0.01","expected_price":"100010.00"}
-→ 201 {"order_id":"...","fill_price":"100010.00","quantity":"0.01","fee":"1.00010000",
-       "cash_after":"8998.89990000","quote":{"bid":"100000.00","ask":"100010.00","received_at":"..."}}
-→ 409 QUOTE_STALE | PRICE_MOVED
-→ 422 INSUFFICIENT_FUNDS | INSUFFICIENT_POSITION | FILTER_VIOLATION | DEPTH_EXCEEDED | IDEMPOTENCY_KEY_REUSED
-GET /trades?cursor=...
+      quantity ve expected_price STRING (JSON sayı gönderilirse 422). expected_price opsiyonel,
+      K2 her zaman önizlemedeki ask (alış) / bid (satış) değerini gönderir.
+      Miktar stepSize'a AŞAĞI yuvarlanır; cevaptaki quantity gerçekleşen miktardır.
+→ 201 {"order_id":"...","trade_id":"...","symbol":"BTCUSDT","side":"BUY",
+       "fill_price":"100010.00000000","quantity":"0.01000000","fee":"1.00010000",
+       "cash_after":"8998.89990000",
+       "quote":{"bid":"100000.00000000","ask":"100010.00000000","received_at":"2026-10-12T14:03:22.123Z"}}
+       Aynı anahtar + aynı içerik tekrar gelirse: aynı 201 cevabı birebir (yeni işlem yapılmaz).
+→ 400 IDEMPOTENCY_KEY_REQUIRED | IDEMPOTENCY_KEY_INVALID
+→ 401 NOT_AUTHENTICATED
+→ 409 QUOTE_STALE (taze fiyat yok) | PRICE_MOVED (fiyat aleyhe PRICE_TOLERANCE'tan fazla oynadı)
+→ 422 INSUFFICIENT_FUNDS | INSUFFICIENT_POSITION | FILTER_VIOLATION | DEPTH_EXCEEDED
+      | IDEMPOTENCY_KEY_REUSED (aynı anahtar, farklı içerik)
+      Reddedilen emirde veritabanında hiçbir şey değişmez.
+
+GET /trades?limit=50&cursor=...   (en yeniden eskiye; limit 1–100)
+→ 200 {"items":[{"id","order_id","symbol","side","quantity","price","notional","fee",
+                 "realized_pnl","bid","ask","quote_received_at","created_at"}],
+       "next_cursor":"..." | null}
+→ 400 BAD_CURSOR · 401 NOT_AUTHENTICATED
+
+Fiyat kaynağı (K1 ↔ K3): backend/app/orders/quotes.py
+  get_tradeable_quote(symbol) -> Quote(symbol, bid, ask, bid_qty, ask_qty, received_at)
+  Taze değilse QuoteStale fırlatır. K3 bağlayana kadar varsayılan kaynak her emri 409 QUOTE_STALE
+  ile reddeder (uydurma fiyat yok).
 
 ## Portföy (K3)
 GET /portfolio

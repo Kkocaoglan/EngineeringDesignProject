@@ -1,5 +1,8 @@
 """Uygulamanın giriş noktası (K1). Yeni router'lar buraya eklenir."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -7,10 +10,21 @@ from fastapi.responses import JSONResponse
 from app.auth.router import router as auth_router
 from app.config import get_settings
 from app.errors import AppError, app_error_handler
+from app.market.exchange_info import sync_assets
+from app.orders.router import router as orders_router
 
 settings = get_settings()
 
-app = FastAPI(title="Sanal Portföy API", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    """Açılışta borsa kurallarını (exchangeInfo → assets) günceller.
+    Binance'e ulaşılamazsa sync_assets hata vermez, tablodaki son değerlerle devam edilir."""
+    await sync_assets()
+    yield
+
+
+app = FastAPI(title="Sanal Portföy API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -41,6 +55,7 @@ async def origin_check(request: Request, call_next):
 
 
 app.include_router(auth_router)
+app.include_router(orders_router)
 
 
 @app.get("/health", tags=["system"])
