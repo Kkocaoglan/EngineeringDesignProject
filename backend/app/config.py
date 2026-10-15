@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     market_source: str = "live"
     binance_rest_url: str = "https://data-api.binance.vision"
     binance_ws_url: str = "wss://data-stream.binance.vision"
+    quote_stale_seconds: int = 5
 
     # Testlerde "null": her istek kendi bağlantısını açar (event loop sorunlarını önler)
     db_pool: str = "default"
