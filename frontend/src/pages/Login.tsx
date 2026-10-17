@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-
+import { Link } from "react-router-dom";
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -45,7 +45,7 @@ export default function Login() {
         </form>
 
         <p className="login-footer">
-          Hesabın yok mu? <a href="/register">Kayıt Ol</a>
+         Hesabın yok mu? <Link to="/register">Kayıt Ol</Link>
         </p>
 
         <p className="login-warning">
