@@ -25,6 +25,10 @@ def _load_recorder_module():
 
 
 def test_quotes_fixture_exists_under_1mb_and_parses_cleanly():
+    recorder = _load_recorder_module()
+    assert recorder.DEFAULT_DURATION_SECONDS == 600.0
+    assert recorder.DEFAULT_MIN_INTERVAL_SECONDS == 1.0
+
     fixture_files = sorted(FIXTURES_DIR.glob("quotes_*.jsonl"))
     assert len(fixture_files) >= 1, "En az bir quotes_*.jsonl fixture dosyası olmalı"
 
@@ -36,6 +40,7 @@ def test_quotes_fixture_exists_under_1mb_and_parses_cleanly():
         assert len(lines) >= len(EXPECTED_SYMBOLS)
 
         seen_symbols: set[str] = set()
+        timestamps: list[datetime] = []
         for line in lines:
             payload = json.loads(line)
             assert "received_at" in payload
@@ -44,6 +49,7 @@ def test_quotes_fixture_exists_under_1mb_and_parses_cleanly():
 
             rec_dt = datetime.fromisoformat(payload["received_at"].replace("Z", "+00:00"))
             assert rec_dt.tzinfo is not None
+            timestamps.append(rec_dt)
 
             quote = parse_book_ticker(line, rec_dt, allowed=EXPECTED_SYMBOLS)
             assert quote is not None
@@ -53,6 +59,8 @@ def test_quotes_fixture_exists_under_1mb_and_parses_cleanly():
             seen_symbols.add(quote.symbol)
 
         assert seen_symbols == EXPECTED_SYMBOLS
+        span_seconds = (timestamps[-1] - timestamps[0]).total_seconds()
+        assert span_seconds >= 590.0, f"Kayıt süresi ~10 dk olmalı (ölçülen: {span_seconds:.1f}s)"
 
 
 async def test_record_quotes_writes_valid_jsonl_from_local_fake_ws(tmp_path: Path):

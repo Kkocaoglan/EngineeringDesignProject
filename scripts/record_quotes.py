@@ -28,7 +28,7 @@ DEFAULT_OUTPUT = REPO_ROOT / "backend" / "tests" / "fixtures" / "quotes_sample.j
 DEFAULT_WS_URL = "wss://data-stream.binance.vision"
 DEFAULT_SYMBOLS = ("BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT", "SOLUSDT")
 DEFAULT_DURATION_SECONDS = 600.0  # 10 dakika
-DEFAULT_MIN_INTERVAL_SECONDS = 0.25  # 10 dk boyunca < 1 MB kalması için sembol başına örnekleme
+DEFAULT_MIN_INTERVAL_SECONDS = 1.0  # 10 dk boyunca ~600 KB (< 1 MB) için sembol başına 1 sn
 MAX_FILE_BYTES = 950_000  # < 1 MB kabul koşulu
 
 
@@ -179,7 +179,7 @@ def main() -> None:
         "--min-interval",
         type=float,
         default=DEFAULT_MIN_INTERVAL_SECONDS,
-        help="Sembol başına minimum kayıt aralığı (saniye, varsayılan: 0.25)",
+        help="Sembol başına minimum kayıt aralığı (saniye, varsayılan: 1.0)",
     )
     parser.add_argument(
         "--max-bytes",
