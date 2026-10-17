@@ -197,4 +197,164 @@
   line-height: 1.6;
 }
 
+.market-page {
+  color: #3e4144;
+  font-family: Arial, sans-serif;
+}
+
+.market-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.market-heading h1 {
+  margin-bottom: 8px;
+}
+
+.market-heading p {
+  color: #aab7cc;
+}
+
+.market-status {
+  color: #fbbf24;
+  font-size: 14px;
+}
+
+.market-notice {
+  padding: 14px;
+  margin-bottom: 20px;
+  border: 1px solid #66521c;
+  border-radius: 10px;
+  background: #292313;
+  color: #fde68a;
+  font-size: 14px;
+}
+
+.market-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #293449;
+  border-radius: 12px;
+}
+
+.market-table {
+  width: 100%;
+  min-width: 650px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.market-table th,
+.market-table td {
+  padding: 16px;
+  border-bottom: 1px solid #293449;
+  white-space: nowrap;
+}
+
+.market-table th {
+  background: #151e30;
+  color: #aab7cc;
+  font-size: 13px;
+}
+
+.market-table td {
+  background: #0f1929;
+  font-size: 14px;
+}
+
+.market-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.market-coin-name {
+  display: block;
+  margin-top: 5px;
+  color: #aab7cc;
+  font-size: 12px;
+}
+
+.market-page {
+  color: #f8fafc;
+  font-family: Arial, sans-serif;
+}
+
+.market-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.market-heading h1 {
+  margin-bottom: 8px;
+}
+
+.market-heading p {
+  color: #aab7cc;
+}
+
+.market-status {
+  color: #fbbf24;
+  font-size: 14px;
+}
+
+.market-notice {
+  padding: 14px;
+  margin-bottom: 20px;
+  border: 1px solid #66521c;
+  border-radius: 10px;
+  background: #292313;
+  color: #fde68a;
+  font-size: 14px;
+}
+
+.market-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #293449;
+  border-radius: 12px;
+}
+
+.market-table {
+  width: 100%;
+  min-width: 650px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.market-table th,
+.market-table td {
+  padding: 16px;
+  border-bottom: 1px solid #293449;
+  white-space: nowrap;
+}
+
+.market-table th {
+  background: #151e30;
+  color: #aab7cc;
+  font-size: 13px;
+}
+
+.market-table td {
+  background: #0f1929;
+  font-size: 14px;
+}
+
+.market-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.market-coin-name {
+  display: block;
+  margin-top: 5px;
+  color: #aab7cc;
+  font-size: 12px;
+}
+
 
