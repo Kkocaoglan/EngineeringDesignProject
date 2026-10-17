@@ -213,6 +213,7 @@
 
 .market-heading h1 {
   margin-bottom: 8px;
+ 
 }
 
 .market-heading p {
@@ -356,5 +357,38 @@
   color: #aab7cc;
   font-size: 12px;
 } 
+.price-up { color: #16a34a; }
+.price-down { color: #dc2626; }
 
+.flash-up { animation: flashUp 0.7s ease-out; }
+.flash-down { animation: flashDown 0.7s ease-out; }
 
+@keyframes flashUp {
+  from { background-color: rgba(34, 197, 94, 0.35); }
+  to { background-color: transparent; }
+}
+@keyframes flashDown {
+  from { background-color: rgba(239, 68, 68, 0.35); }
+  to { background-color: transparent; }
+}
+
+.order-form {
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #0f172a;
+}
+.order-form h2 { color: #0f172a; margin-top: 0; }
+.order-form input {
+  padding: 6px 10px;
+  border: 1px solid #94a3b8;
+  border-radius: 6px;
+  background: #fff;
+  color: #0f172a;
+}
+.order-form button { margin: 4px 6px 4px 0; }
+.order-warning { color: #b45309; }
+.order-error { color: #dc2626; }
+.order-success { color: #16a34a; }
