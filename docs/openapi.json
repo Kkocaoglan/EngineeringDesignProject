@@ -56,6 +56,68 @@
         "title": "LoginRequest",
         "type": "object"
       },
+      "MarketItem": {
+        "properties": {
+          "ask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ask"
+          },
+          "bid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bid"
+          },
+          "received_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received At"
+          },
+          "spread": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spread"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "tradeable": {
+            "title": "Tradeable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "symbol",
+          "tradeable"
+        ],
+        "title": "MarketItem",
+        "type": "object"
+      },
       "MeOut": {
         "properties": {
           "cash": {
@@ -483,6 +545,32 @@
         ]
       }
     },
+    "/markets": {
+      "get": {
+        "description": "Tüm sembollerin son fiyat ve durumunu döner.",
+        "operationId": "get_markets_markets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MarketItem"
+                  },
+                  "title": "Response Get Markets Markets Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Markets",
+        "tags": [
+          "market"
+        ]
+      }
+    },
     "/me": {
       "get": {
         "operationId": "me_me_get",
@@ -604,6 +692,26 @@
         "summary": "Create Order",
         "tags": [
           "orders"
+        ]
+      }
+    },
+    "/stream": {
+      "get": {
+        "description": "Tek yönlü SSE yayını: quote (saniyede 1) ve market_status.",
+        "operationId": "stream_stream_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Stream",
+        "tags": [
+          "stream"
         ]
       }
     },

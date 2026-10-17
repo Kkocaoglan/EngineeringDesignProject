@@ -1,7 +1,6 @@
-"""Uygulamanın giriş noktası (K1). Yeni router'lar buraya eklenir."""
-
+import asyncio
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,18 +9,31 @@ from fastapi.responses import JSONResponse
 from app.auth.router import router as auth_router
 from app.config import get_settings
 from app.errors import AppError, app_error_handler
+from app.market.binance import get_binance_provider
 from app.market.exchange_info import sync_assets
+from app.market.router import router as market_router
 from app.orders.router import router as orders_router
+from app.stream.router import router as stream_router
 
 settings = get_settings()
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    """Açılışta borsa kurallarını (exchangeInfo → assets) günceller.
+    """Açılışta borsa kurallarını (exchangeInfo → assets) günceller ve piyasa verisini başlatır.
     Binance'e ulaşılamazsa sync_assets hata vermez, tablodaki son değerlerle devam edilir."""
     await sync_assets()
-    yield
+    market_task = None
+    if settings.market_source == "live":
+        provider = get_binance_provider()
+        market_task = asyncio.create_task(provider.run_forever())
+    try:
+        yield
+    finally:
+        if market_task is not None:
+            market_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await market_task
 
 
 app = FastAPI(title="Sanal Portföy API", version="0.1.0", lifespan=lifespan)
@@ -56,6 +68,8 @@ async def origin_check(request: Request, call_next):
 
 app.include_router(auth_router)
 app.include_router(orders_router)
+app.include_router(market_router)
+app.include_router(stream_router)
 
 
 @app.get("/health", tags=["system"])
