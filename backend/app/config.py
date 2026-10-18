@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     binance_ws_url: str = "wss://data-stream.binance.vision"
     quote_stale_seconds: int = 5
 
+    # İstek sınırları (IP'ye göre değil): giriş e-posta başına, emir hesap başına
+    login_attempts_per_minute: int = 5
+    orders_per_second: int = 5
+
     # Testlerde "null": her istek kendi bağlantısını açar (event loop sorunlarını önler)
     db_pool: str = "default"
 

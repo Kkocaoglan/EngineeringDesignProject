@@ -14,6 +14,7 @@ from app.config import get_settings
 from app.db import get_session
 from app.errors import AppError
 from app.models import Account, CashEntry, User
+from app.ratelimit import login_limiter
 
 router = APIRouter(tags=["auth"])
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
@@ -46,6 +47,8 @@ async def register(body: Credentials, session: SessionDep) -> UserOut:
 @router.post("/auth/login", response_model=UserOut)
 async def login(body: LoginRequest, session: SessionDep, response: Response) -> UserOut:
     settings = get_settings()
+    # Kaba kuvvet denemelerine karşı: e-posta başına dakikada 5 deneme, aşılırsa 429.
+    login_limiter.hit(_normalize(body.email))
     user = (
         await session.execute(select(User).where(User.email == _normalize(body.email)))
     ).scalar_one_or_none()

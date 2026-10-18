@@ -792,6 +792,66 @@
           "orders"
         ]
       }
+    },
+    "/trades/{trade_id}": {
+      "get": {
+        "description": "Tek bir işlem. Başka kullanıcının işlemi de \"yok\" gibi 404 döner: hem erişim engellenir\nhem de o numaranın var olup olmadığı dışarıya sızmaz.",
+        "operationId": "get_trade_trades__trade_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trade_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Trade Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Trade",
+        "tags": [
+          "orders"
+        ]
+      }
     }
   }
 }
