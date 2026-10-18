@@ -5,6 +5,9 @@ Kurallar:
 - Tüm zamanlar ISO 8601, UTC: "2026-10-12T14:03:22.123Z"
 - Hata biçimi: {"error": {"code": "INSUFFICIENT_FUNDS", "message": "..."}}
 - Tarayıcı istekleri /api ön ekiyle gider (Vite proxy kaldırır): /api/auth/login → /auth/login
+- Durum değiştiren isteklerde (POST/PUT/PATCH/DELETE) Origin başlığı uygulamanın kendi adresi
+  değilse → 403 BAD_ORIGIN (CSRF koruması)
+- İstek sınırı aşılırsa → 429 TOO_MANY_REQUESTS + "Retry-After: <saniye>" başlığı
 
 ## Sistem
 GET /health → 200 {"status":"ok"}
@@ -15,6 +18,7 @@ POST /auth/register {email, password}  → 201 {id, email}
                                         → 409 EMAIL_TAKEN · 422 doğrulama hatası (şifre en az 8 karakter)
 POST /auth/login    {email, password}  → 200 {id, email} + httpOnly çerez "session"
                                         → 401 INVALID_CREDENTIALS
+                                        → 429 TOO_MANY_REQUESTS (e-posta başına dakikada 5 deneme)
 POST /auth/logout                      → 204 (çerez silinir)
 GET  /me                               → 200 {id, email, cash} · 401 NOT_AUTHENTICATED
 
@@ -42,6 +46,7 @@ Body: {"symbol":"BTCUSDT","side":"BUY","quantity":"0.01","expected_price":"10001
 → 409 QUOTE_STALE (taze fiyat yok) | PRICE_MOVED (fiyat aleyhe PRICE_TOLERANCE'tan fazla oynadı)
 → 422 INSUFFICIENT_FUNDS | INSUFFICIENT_POSITION | FILTER_VIOLATION | DEPTH_EXCEEDED
       | IDEMPOTENCY_KEY_REUSED (aynı anahtar, farklı içerik)
+→ 429 TOO_MANY_REQUESTS (hesap başına saniyede 5 emir)
       Reddedilen emirde veritabanında hiçbir şey değişmez.
 
 GET /trades?limit=50&cursor=...   (en yeniden eskiye; limit 1–100)
@@ -49,6 +54,11 @@ GET /trades?limit=50&cursor=...   (en yeniden eskiye; limit 1–100)
                  "realized_pnl","bid","ask","quote_received_at","created_at"}],
        "next_cursor":"..." | null}
 → 400 BAD_CURSOR · 401 NOT_AUTHENTICATED
+
+GET /trades/{trade_id}            (tek işlem; yukarıdaki items[] elemanıyla aynı biçim)
+→ 200 {...} · 401 NOT_AUTHENTICATED
+→ 404 TRADE_NOT_FOUND (yok YA DA başka kullanıcıya ait; ikisi aynı cevabı alır, numara sızmaz)
+→ 422 trade_id bir UUID değil
 
 Fiyat kaynağı (K1 ↔ K3): backend/app/orders/quotes.py
   get_tradeable_quote(symbol) -> Quote(symbol, bid, ask, bid_qty, ask_qty, received_at)

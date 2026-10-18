@@ -18,6 +18,7 @@ from app.money import fmt
 from app.orders.quotes import QuoteSource, get_quote_source
 from app.orders.schemas import OrderIn, OrderOut, TradeOut, TradePage
 from app.orders.service import OrderRequest, execute_order, iso_utc
+from app.ratelimit import order_limiter
 
 router = APIRouter(tags=["orders"])
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
@@ -41,6 +42,7 @@ async def create_order(
     quotes: Annotated[QuoteSource, Depends(get_quote_source)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> dict:
+    order_limiter.hit(str(user.id))  # hesap başına saniyede 5 emir, aşılırsa 429
     req = OrderRequest(
         idempotency_key=_parse_key(idempotency_key),
         symbol=body.symbol,
@@ -87,6 +89,19 @@ async def list_trades(
         items=[_trade_out(t) for t in page],
         next_cursor=_encode_cursor(page[-1]) if len(rows) > limit else None,
     )
+
+
+@router.get("/trades/{trade_id}", response_model=TradeOut)
+async def get_trade(trade_id: uuid.UUID, user: UserDep, session: SessionDep) -> TradeOut:
+    """Tek bir işlem. Başka kullanıcının işlemi de "yok" gibi 404 döner: hem erişim engellenir
+    hem de o numaranın var olup olmadığı dışarıya sızmaz."""
+    trade = (await session.execute(
+        select(Trade).join(Account, Account.id == Trade.account_id)
+        .where(Trade.id == trade_id, Account.user_id == user.id)
+    )).scalar_one_or_none()
+    if trade is None:
+        raise AppError(404, "TRADE_NOT_FOUND", "İşlem bulunamadı.")
+    return _trade_out(trade)
 
 
 def _trade_out(t: Trade) -> TradeOut:
