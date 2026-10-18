@@ -1,31 +1,52 @@
 import { useEffect, useRef, useState } from "react";
 import Decimal from "decimal.js";
+import { useAuth } from "../context/AuthContext";
+import { useLiveStream } from "../hooks/useLiveStream";
 
-/* ---------- Ayarlar (şimdilik örnek değerler) ---------- */
-const COMMISSION_RATE = "0.001"; // yüzde 0,1
-const USDT_BALANCE = "1000";
-const COIN_BALANCE = "1";
-const ORDER_URL = "/api/orders"; // docs/api.md → Emir (K1) bölümüne göre düzeltilecek
+/* ---------- Ayarlar ---------- */
+const ORDER_URL = "/api/orders";
+const COMMISSION_RATE = "0.001"; // yüzde 0,1 (sözleşme örneğiyle uyumlu)
+
 const STEP_SIZES: Record<string, string> = {
   BTCUSDT: "0.00001",
   ETHUSDT: "0.0001",
   BNBUSDT: "0.001",
   SOLUSDT: "0.001",
   XRPUSDT: "0.1",
-  DOGEUSDT: "1",
-  ADAUSDT: "0.1",
-  AVAXUSDT: "0.01",
 };
+const NAMES: Record<string, string> = {
+  BTCUSDT: "Bitcoin",
+  ETHUSDT: "Ethereum",
+  BNBUSDT: "BNB",
+  XRPUSDT: "XRP",
+  SOLUSDT: "Solana",
+};
+// Fiyatın ekranda kaç basamakla gösterileceği (varsayılan 2)
+const PRICE_DIGITS: Record<string, number> = { XRPUSDT: 4 };
+const digitsOf = (symbol: string) => PRICE_DIGITS[symbol] ?? 2;
+
 const ERROR_MESSAGES: Record<string, string> = {
-  INSUFFICIENT_BALANCE: "Yetersiz bakiye.",
+  INSUFFICIENT_FUNDS: "Yetersiz bakiye.",
+  INSUFFICIENT_POSITION: "Elinde bu kadar coin yok.",
+  FILTER_VIOLATION: "Miktar veya tutar borsa kurallarına uymuyor.",
+  DEPTH_EXCEEDED: "Bu fiyattan bu kadar miktar alınamıyor, daha az dene.",
+  QUOTE_STALE: "Canlı fiyat alınamıyor, emirler geçici olarak kapalı.",
   PRICE_MOVED: "Fiyat değişti. Önizlemeyi kontrol edip tekrar dene.",
-  INVALID_QUANTITY: "Miktar geçersiz.",
+  IDEMPOTENCY_KEY_REUSED: "Bu emir zaten gönderildi.",
+  NOT_AUTHENTICATED: "Emir vermek için giriş yapmalısın.",
+  TOO_MANY_REQUESTS: "Çok hızlı emir veriyorsun, biraz bekle.",
 };
 
 /* ---------- Önizleme hesabı (decimal.js) ---------- */
 const floorToStep = (v: Decimal, step: Decimal) => v.div(step).floor().mul(step);
 
-function calcPreview(side: "BUY" | "SELL", price: string, quantity: string, stepSize: string) {
+function calcPreview(
+  side: "BUY" | "SELL",
+  price: string,
+  quantity: string,
+  stepSize: string,
+  cash: string | null
+) {
   try {
     const p = new Decimal(price);
     const rawQty = new Decimal(quantity);
@@ -36,45 +57,72 @@ function calcPreview(side: "BUY" | "SELL", price: string, quantity: string, step
     const qty = floorToStep(rawQty, step);
     const notional = p.mul(qty);
     const fee = notional.mul(rate);
-    const balance = new Decimal(side === "BUY" ? USDT_BALANCE : COIN_BALANCE);
-
     const total = side === "BUY" ? notional.plus(fee) : notional.minus(fee);
-    const remaining = side === "BUY" ? balance.minus(total) : balance.minus(qty);
-    const maxQty =
-      side === "BUY"
-        ? floorToStep(balance.div(p.mul(rate.plus(1))), step)
-        : floorToStep(balance, step);
-    const insufficient = side === "BUY" ? total.gt(balance) : qty.gt(balance);
 
-    return { qty, rounded: !qty.eq(rawQty), fee, total, remaining, maxQty, insufficient, dec: step.decimalPlaces() };
+    // Bakiye kontrolü sadece alışta (satışta backend kontrol ediyor)
+    let remaining: Decimal | null = null;
+    let maxQty: Decimal | null = null;
+    let insufficient = false;
+    if (side === "BUY" && cash !== null) {
+      const balance = new Decimal(cash);
+      remaining = balance.minus(total);
+      maxQty = floorToStep(balance.div(p.mul(rate.plus(1))), step);
+      insufficient = total.gt(balance);
+    }
+
+    return {
+      qty,
+      tooSmall: qty.lte(0),
+      rounded: !qty.eq(rawQty),
+      fee,
+      total,
+      remaining,
+      maxQty,
+      insufficient,
+      dec: step.decimalPlaces(),
+    };
   } catch {
     return null;
   }
 }
 
-/* ---------- Emir gönderme: 10 sn zaman aşımı, aynı anahtarla 1-2-4 sn arayla 3 tekrar ---------- */
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const BACKOFF = [1000, 2000, 4000];
+/* ---------- Emir gönderme ---------- */
+type OrderOk = {
+  symbol: string;
+  quantity: string;
+  fill_price: string;
+  fee: string;
+  cash_after: string;
+};
+type SubmitResult =
+  | { ok: true; data: OrderOk }
+  | { ok: false; code: string; message: string };
 
-async function submitOrder(body: object, key: string, onChecking: () => void) {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const BACKOFF = [1000, 2000, 4000]; // aynı anahtarla 1-2-4 sn arayla tekrar
+
+async function submitOrder(body: object, key: string, onChecking: () => void): Promise<SubmitResult> {
   for (let i = 0; i <= BACKOFF.length; i++) {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 10_000);
+    const timer = setTimeout(() => ctrl.abort(), 10_000); // 10 sn zaman aşımı
     try {
       const res = await fetch(ORDER_URL, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json", "Idempotency-Key": key },
         body: JSON.stringify(body),
         signal: ctrl.signal,
       });
       const data = await res.json().catch(() => null);
-      if (res.ok) return { ok: true as const, message: "" };
+      if (res.ok) return { ok: true, data: data as OrderOk };
       if (res.status < 500) {
-        const code = data?.code ?? "UNKNOWN";
-        return { ok: false as const, message: ERROR_MESSAGES[code] ?? "Emir reddedildi." };
+        // 4xx kesin sonuçtur, tekrar denenmez
+        const code = (data as { error?: { code?: string } } | null)?.error?.code ?? "UNKNOWN";
+        return { ok: false, code, message: ERROR_MESSAGES[code] ?? "Emir reddedildi." };
       }
+      // 5xx: aşağıda aynı anahtarla tekrar denenir
     } catch {
-      /* zaman aşımı veya ağ hatası: tekrar denenecek */
+      // zaman aşımı veya ağ hatası: tekrar denenir
     } finally {
       clearTimeout(timer);
     }
@@ -83,52 +131,43 @@ async function submitOrder(body: object, key: string, onChecking: () => void) {
     await sleep(BACKOFF[i]);
   }
   return {
-    ok: false as const,
-    message: "Emrin sonucu doğrulanamadı. Geçmiş sayfasından kontrol et, tekrar gönderme.",
+    ok: false,
+    code: "UNKNOWN_OUTCOME",
+    message: "Emrin sonucu doğrulanamadı. Geçmiş sayfasından kontrol et, tekrar göndermeden önce bekle.",
   };
 }
 
+function successText(d: OrderOk) {
+  try {
+    return `Emir gerçekleşti: ${new Decimal(d.quantity).toFixed()} ${d.symbol} @ ${new Decimal(d.fill_price).toFixed(2)} USDT · komisyon ${new Decimal(d.fee).toFixed()} USDT · kalan bakiye ${new Decimal(d.cash_after).toFixed(2)} USDT`;
+  } catch {
+    return "Emir gerçekleşti.";
+  }
+}
+
 /* ---------- Market sayfası ---------- */
-type Coin = {
+type MarketRow = {
   symbol: string;
-  name: string;
-  bid: number | null;
-  ask: number | null;
-  updatedAt: number | null;
-  dir: "up" | "down" | null;
-  tick: number;
+  bid: string | null;
+  ask: string | null;
+  spread: string | null;
+  received_at: string | null;
+  tradeable: boolean;
 };
+type Coin = MarketRow & { dir: "up" | "down" | null; tick: number };
 
-const makeCoin = (symbol: string, name: string): Coin => ({
-  symbol, name, bid: null, ask: null, updatedAt: null, dir: null, tick: 0,
-});
-
-const initialCoins: Coin[] = [
-  makeCoin("BTCUSDT", "Bitcoin"),
-  makeCoin("ETHUSDT", "Ethereum"),
-  makeCoin("BNBUSDT", "BNB"),
-  makeCoin("SOLUSDT", "Solana"),
-  makeCoin("XRPUSDT", "XRP"),
-  makeCoin("DOGEUSDT", "Dogecoin"),
-  makeCoin("ADAUSDT", "Cardano"),
-  makeCoin("AVAXUSDT", "Avalanche"),
-];
-
-function fmt(value: number | null, maxDigits = 2) {
-  if (value === null) return "—";
-  return value.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: maxDigits,
-  });
+function fmt(value: string | null, digits = 2) {
+  return value === null ? "—" : new Decimal(value).toFixed(digits);
 }
 
 export default function Market() {
-  const [coins, setCoins] = useState(initialCoins);
-  const [status, setStatus] = useState("Bağlanıyor...");
-  const [now, setNow] = useState(Date.now());
+  const { user, refreshMe } = useAuth();
+  const [coins, setCoins] = useState<Coin[]>([]);
+  const [now, setNow] = useState(() => Date.now());
+  const [cash, setCash] = useState<string | null>(user?.cash ?? null);
 
   // Emir paneli
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>("BTCUSDT");
   const [side, setSide] = useState<"BUY" | "SELL">("BUY");
   const [quantity, setQuantity] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -143,41 +182,60 @@ export default function Market() {
   }, []);
 
   useEffect(() => {
-    const streams = initialCoins.map((c) => `${c.symbol.toLowerCase()}@ticker`).join("/");
-    const socket = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
+    if (user?.cash) setCash(user.cash);
+  }, [user?.cash]);
 
-    socket.onopen = () => setStatus("Canlı bağlantı aktif");
-    socket.onerror = () => setStatus("Bağlantı hatası");
-    socket.onclose = () => setStatus("Bağlantı kapandı");
+  // Canlı SSE veri akışı (Rehber 2.5 - useLiveStream)
+  const { status, isLive, setStatus } = useLiveStream((quotes) => {
+    setCoins((prev) =>
+      prev.map((c) => {
+        const q = quotes.find((x) => x.symbol === c.symbol);
+        if (!q) return c;
+        let { dir, tick } = c;
+        // Yön karşılaştırması Decimal ile
+        if (c.bid !== null && !new Decimal(q.bid).eq(c.bid)) {
+          dir = new Decimal(q.bid).gt(c.bid) ? "up" : "down";
+          tick = c.tick + 1;
+        }
+        return {
+          ...c,
+          bid: q.bid,
+          ask: q.ask,
+          received_at: q.received_at,
+          spread: new Decimal(q.ask).minus(q.bid).toFixed(),
+          dir,
+          tick,
+        };
+      })
+    );
+  });
 
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data).data;
-      setCoins((current) =>
-        current.map((coin) => {
-          if (coin.symbol !== data.s) return coin;
-          const bid = Number(data.b);
-          const ask = Number(data.a);
-          let { dir, tick } = coin;
-          if (coin.bid !== null && bid !== coin.bid) {
-            dir = bid > coin.bid ? "up" : "down";
-            tick = coin.tick + 1;
-          }
-          return { ...coin, bid, ask, updatedAt: Date.now(), dir, tick };
-        })
-      );
+  // Fiyatlar backend'den: ilk liste
+  useEffect(() => {
+    let alive = true;
+
+    fetch("/api/markets")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((rows: MarketRow[]) => {
+        if (alive && Array.isArray(rows)) {
+          setCoins(rows.map((r) => ({ ...r, dir: null, tick: 0 })));
+        }
+      })
+      .catch(() => {
+        if (alive) setStatus("Piyasa verisi alınamadı");
+      });
+
+    return () => {
+      alive = false;
     };
+  }, [setStatus]);
 
-    return () => socket.close();
-  }, []);
-
-  const isLive = status === "Canlı bağlantı aktif";
-
-  // Seçili coin ve önizleme
   const selectedCoin = coins.find((c) => c.symbol === selected) ?? null;
+  // Alışta ask, satışta bid (string olarak, sözleşme gereği)
   const livePrice = selectedCoin ? (side === "BUY" ? selectedCoin.ask : selectedCoin.bid) : null;
   const preview =
     selectedCoin && livePrice !== null
-      ? calcPreview(side, String(livePrice), quantity, STEP_SIZES[selectedCoin.symbol] ?? "0.00001")
+      ? calcPreview(side, livePrice, quantity, STEP_SIZES[selectedCoin.symbol] ?? "0.00001", cash)
       : null;
 
   function selectCoin(symbol: string) {
@@ -189,7 +247,7 @@ export default function Market() {
   }
 
   async function handleSubmit() {
-    if (submitting || !preview || !selectedCoin || livePrice === null) return;
+    if (submitting || !preview || preview.tooSmall || !selectedCoin || livePrice === null) return;
     setSubmitting(true);
     setError("");
     setSuccess("");
@@ -198,8 +256,8 @@ export default function Market() {
       {
         symbol: selectedCoin.symbol,
         side,
-        quantity: preview.qty.toFixed(preview.dec),
-        expected_price: String(livePrice),
+        quantity: preview.qty.toFixed(preview.dec), // string
+        expected_price: livePrice,                  // string
       },
       keyRef.current,
       () => setChecking(true)
@@ -211,20 +269,25 @@ export default function Market() {
     if (result.ok) {
       keyRef.current = crypto.randomUUID();
       setQuantity("");
-      setSuccess("Emir gönderildi.");
+      setCash(result.data.cash_after);
+      setSuccess(successText(result.data));
+      refreshMe();
     } else {
+      // Kesin sonuç geldiyse yeni emir için yeni anahtar; belirsizse aynısı kalır
+      if (result.code !== "UNKNOWN_OUTCOME") keyRef.current = crypto.randomUUID();
       setError(result.message);
     }
   }
 
   return (
     <section className="market-page">
-      <h1>Piyasa</h1>
-      <p>Kripto para piyasasını canlı takip et.</p>
+      <div className="market-heading">
+        <h1>Piyasa</h1>
+        <p>Kripto para piyasasını canlı takip et.</p>
+      </div>
 
       <div className="market-notice">
-        {isLive ? "🟢" : "🔴"} Veri durumu: {status}. Fiyatlar Binance Spot canlı
-        verileridir. Emir vermek için tablodan bir coin seç.
+        {isLive ? "🟢" : "🔴"} Veri durumu: {status}. Emir vermek için tablodan bir coin seç.
       </div>
 
       <div className="market-table-wrapper">
@@ -240,12 +303,11 @@ export default function Market() {
           </thead>
           <tbody>
             {coins.map((coin) => {
-              const spread =
-                coin.bid !== null && coin.ask !== null ? coin.ask - coin.bid : null;
               const seconds =
-                coin.updatedAt !== null
-                  ? Math.max(0, Math.round((now - coin.updatedAt) / 1000))
+                coin.received_at !== null
+                  ? Math.max(0, Math.round((now - Date.parse(coin.received_at)) / 1000))
                   : null;
+              const d = digitsOf(coin.symbol);
               const effect = coin.dir ? `flash-${coin.dir} price-${coin.dir}` : "";
 
               return (
@@ -259,15 +321,20 @@ export default function Market() {
                 >
                   <td>
                     <strong>{coin.symbol.replace("USDT", "/USDT")}</strong>
-                    <span className="market-coin-name">{coin.name}</span>
+                    <span className="market-coin-name">{NAMES[coin.symbol] ?? ""}</span>
                   </td>
-                  <td key={`bid-${coin.tick}`} className={effect}>{fmt(coin.bid, 6)}</td>
-                  <td key={`ask-${coin.tick}`} className={effect}>{fmt(coin.ask, 6)}</td>
-                  <td>{fmt(spread, 6)}</td>
+                  <td key={`bid-${coin.tick}`} className={effect}>{fmt(coin.bid, d)}</td>
+                  <td key={`ask-${coin.tick}`} className={effect}>{fmt(coin.ask, d)}</td>
+                  <td>{fmt(coin.spread, 6)}</td>
                   <td>{seconds === null ? "—" : `${seconds} sn önce`}</td>
                 </tr>
               );
             })}
+            {coins.length === 0 && (
+              <tr>
+                <td colSpan={5}>Piyasa verisi yükleniyor...</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -281,7 +348,8 @@ export default function Market() {
             <button type="button" onClick={() => setSide("SELL")} disabled={side === "SELL"}>Sat</button>
           </div>
 
-          <p>Fiyat: {fmt(livePrice, 6)} USDT</p>
+          <p>Fiyat: {fmt(livePrice, digitsOf(selectedCoin.symbol))} USDT</p>
+          <p>Bakiye: {cash === null ? "—" : fmt(cash, 2)} USDT</p>
 
           <label>
             Miktar{" "}
@@ -297,29 +365,46 @@ export default function Market() {
               <div>Miktar: {preview.qty.toFixed(preview.dec)}</div>
               <div>Komisyon: {preview.fee.toFixed(4)} USDT</div>
               <div>Toplam: {preview.total.toFixed(2)} USDT</div>
-              <div>Kalan bakiye: {preview.remaining.toFixed(side === "BUY" ? 2 : preview.dec)}</div>
-              <div>
-                En fazla:{" "}
-                <button
-                  type="button"
-                  onClick={() => setQuantity(preview.maxQty.toFixed(preview.dec))}
-                >
-                  {preview.maxQty.toFixed(preview.dec)}
-                </button>
-              </div>
-              {preview.rounded && (
+              {preview.remaining !== null && (
+                <div>Kalan bakiye: {preview.remaining.toFixed(2)} USDT</div>
+              )}
+              {preview.maxQty !== null && (
+                <div>
+                  En fazla:{" "}
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(preview.maxQty!.toFixed(preview.dec))}
+                  >
+                    {preview.maxQty.toFixed(preview.dec)}
+                  </button>
+                </div>
+              )}
+              {preview.rounded && !preview.tooSmall && (
                 <p className="order-warning">
                   Miktar adım değerine göre {preview.qty.toFixed(preview.dec)} olarak yuvarlandı.
                 </p>
+              )}
+              {preview.tooSmall && (
+                <p className="order-error">Miktar, en küçük adım değerinin altında.</p>
               )}
               {preview.insufficient && <p className="order-error">Yetersiz bakiye.</p>}
             </div>
           )}
 
+          {!selectedCoin.tradeable && (
+            <p className="order-error">Bu coin için işlem şu an kapalı.</p>
+          )}
+
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={submitting || !preview || preview.insufficient}
+            disabled={
+              submitting ||
+              !preview ||
+              preview.tooSmall ||
+              preview.insufficient ||
+              !selectedCoin.tradeable
+            }
           >
             {checking ? "Sonuç kontrol ediliyor..." : submitting ? "Gönderiliyor..." : "Emri ver"}
           </button>

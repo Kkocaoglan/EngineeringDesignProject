@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import Decimal from "decimal.js";
 
-// Market.tsx'teki ORDER_URL ile aynı sunucu olmalı
-const API_BASE = "http://localhost:8000";
+const API_BASE = "/api";
 const PAGE_LIMIT = 50;
 
 type Trade = {

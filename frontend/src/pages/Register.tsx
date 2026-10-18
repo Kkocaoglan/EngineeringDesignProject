@@ -1,14 +1,19 @@
-
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { ApiError } from "../api/client";
 
 export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  const { register, login } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
@@ -22,7 +27,23 @@ export default function Register() {
       return;
     }
 
-    alert("Kayıt ekranı çalışıyor. Gerçek hesap oluşturma henüz bağlanmadı.");
+    setLoading(true);
+
+    try {
+      // 1. Kayıt ol
+      await register(email, password);
+      // 2. Otomatik giriş yap ve markete yönlendir
+      await login(email, password);
+      navigate("/market");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Kayıt olunurken bir hata oluştu. Lütfen tekrar deneyin.");
+      }
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -43,6 +64,7 @@ export default function Register() {
             placeholder="ornek@mail.com"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
+            disabled={loading}
             required
           />
 
@@ -54,6 +76,7 @@ export default function Register() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             minLength={8}
+            disabled={loading}
             required
           />
 
@@ -64,12 +87,19 @@ export default function Register() {
             placeholder="Şifreni tekrar gir"
             value={confirmPassword}
             onChange={(event) => setConfirmPassword(event.target.value)}
+            disabled={loading}
             required
           />
 
-          {error && <p role="alert" style={{ color: "#f87171" }}>{error}</p>}
+          {error && (
+            <p role="alert" style={{ color: "#f87171", margin: "4px 0", fontSize: "14px" }}>
+              {error}
+            </p>
+          )}
 
-          <button type="submit">Kayıt Ol</button>
+          <button type="submit" disabled={loading}>
+            {loading ? "Kayıt olunuyor..." : "Kayıt Ol"}
+          </button>
         </form>
 
         <p className="login-footer">
