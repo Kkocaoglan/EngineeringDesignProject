@@ -38,6 +38,9 @@ class QuoteStore:
     def snapshot(self) -> dict[str, Quote]:
         return dict(self._quotes)
 
+    def clear(self) -> None:
+        self._quotes.clear()
+
 
 _default_store = QuoteStore()
 

@@ -39,9 +39,8 @@ class NoMarketData:
         raise QuoteStale(f"{symbol} için canlı fiyat yok.")
 
 
-_default_source: QuoteSource = NoMarketData()
-
-
 def get_quote_source() -> QuoteSource:
     """FastAPI bağımlılığı. Testler app.dependency_overrides ile sahte kaynak verir."""
-    return _default_source
+    from app.market.guard import get_quote_guard
+
+    return get_quote_guard()

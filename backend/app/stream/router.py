@@ -16,6 +16,7 @@ from fastapi.responses import StreamingResponse
 from app.config import Settings, get_settings
 from app.market.binance import BinanceProvider, get_binance_provider
 from app.market.clock import Clock, SystemClock, iso_utc
+from app.market.guard import QuoteGuard
 from app.market.provider import QuoteStore, get_quote_store
 from app.money import fmt
 
@@ -40,11 +41,15 @@ async def generate_stream_events(
     request: Request | None = None,
     interval_seconds: float = 1.0,
 ) -> AsyncIterator[str]:
-    is_conn = provider.is_connected
-    state = "HEALTHY" if is_conn else "DOWN"
-    closed = [] if is_conn else list(settings.symbol_list)
-    status_payload = {"state": state, "symbols_closed": closed}
-    yield f"event: market_status\ndata: {json.dumps(status_payload)}\n\n"
+    guard = QuoteGuard(
+        store=store,
+        clock=clock,
+        stale_seconds=settings.quote_stale_seconds,
+        symbols=settings.symbol_list,
+        provider=provider,
+    )
+    last_status = guard.market_status()
+    yield f"event: market_status\ndata: {json.dumps(last_status)}\n\n"
 
     while True:
         if request is not None:
@@ -53,6 +58,11 @@ async def generate_stream_events(
                     break
             except Exception:
                 break
+
+        current_status = guard.market_status()
+        if current_status != last_status:
+            last_status = current_status
+            yield f"event: market_status\ndata: {json.dumps(current_status)}\n\n"
 
         quotes_data = []
         for symbol in settings.symbol_list:
