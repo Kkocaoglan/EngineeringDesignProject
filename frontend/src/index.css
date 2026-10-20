@@ -1,0 +1,218 @@
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #0b1120;
+  color: #f8fafc;
+  font-family: Arial, sans-serif;
+  box-sizing: border-box;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 32px;
+  border: 1px solid #293449;
+  border-radius: 18px;
+  background: #151e30;
+  box-sizing: border-box;
+}
+
+.login-logo {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: #38bdf8;
+  color: #0b1120;
+  font-weight: bold;
+  font-size: 20px;
+}
+
+.login-card h1 {
+  margin: 24px 0 8px;
+  font-size: 28px;
+}
+
+.login-subtitle {
+  color: #aab7cc;
+  margin-bottom: 28px;
+}
+
+.login-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.login-card label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.login-card input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px;
+  border: 1px solid #3a4860;
+  border-radius: 9px;
+  background: #0b1120;
+  color: white;
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+
+.login-card button {
+  margin-top: 8px;
+  padding: 14px;
+  border: none;
+  border-radius: 9px;
+  background: #38bdf8;
+  color: #0b1120;
+  font-weight: bold;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.login-card button:hover {
+  background: #7dd3fc;
+}
+
+.login-footer {
+  text-align: center;
+  color: #aab7cc;
+  font-size: 14px;
+  margin-top: 24px;
+}
+
+.login-card a {
+  color: #38bdf8;
+}
+
+.login-warning {
+  border-top: 1px solid #293449;
+  padding-top: 16px;
+  margin-top: 24px;
+  color: #aab7cc;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.market-page {
+  color: #f8fafc;
+  font-family: Arial, sans-serif;
+}
+
+.market-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.market-heading h1 {
+  margin-bottom: 8px;
+}
+
+.market-heading p {
+  color: #aab7cc;
+}
+
+.market-status {
+  color: #fbbf24;
+  font-size: 14px;
+}
+
+.market-notice {
+  padding: 14px;
+  margin-bottom: 20px;
+  border: 1px solid #66521c;
+  border-radius: 10px;
+  background: #292313;
+  color: #fde68a;
+  font-size: 14px;
+}
+
+.market-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #293449;
+  border-radius: 12px;
+}
+
+.market-table {
+  width: 100%;
+  min-width: 650px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.market-table th,
+.market-table td {
+  padding: 16px;
+  border-bottom: 1px solid #293449;
+  white-space: nowrap;
+}
+
+.market-table th {
+  background: #151e30;
+  color: #aab7cc;
+  font-size: 13px;
+}
+
+.market-table td {
+  background: #0f1929;
+  font-size: 14px;
+}
+
+.market-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.market-coin-name {
+  display: block;
+  margin-top: 5px;
+  color: #aab7cc;
+  font-size: 12px;
+}
+
+.price-up { color: #16a34a; }
+.price-down { color: #dc2626; }
+
+.flash-up { animation: flashUp 0.7s ease-out; }
+.flash-down { animation: flashDown 0.7s ease-out; }
+
+@keyframes flashUp {
+  from { background-color: rgba(34, 197, 94, 0.35); }
+  to { background-color: transparent; }
+}
+@keyframes flashDown {
+  from { background-color: rgba(239, 68, 68, 0.35); }
+  to { background-color: transparent; }
+}
+
+.order-form {
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #0f172a;
+}
+.order-form h2 { color: #0f172a; margin-top: 0; }
+.order-form input {
+  padding: 6px 10px;
+  border: 1px solid #94a3b8;
+  border-radius: 6px;
+  background: #fff;
+  color: #0f172a;
+}
+.order-form button { margin: 4px 6px 4px 0; }
+.order-warning { color: #b45309; }
+.order-error { color: #dc2626; }
+.order-success { color: #16a34a; }
