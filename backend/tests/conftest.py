@@ -8,6 +8,7 @@ from sqlalchemy import text
 
 from app.db import engine
 from app.main import app
+from app.ratelimit import login_limiter, order_limiter
 from tests.fakes import FakeQuoteSource
 
 TABLES = "cash_entries, trades, orders, positions, assets, accounts, users"
@@ -18,6 +19,14 @@ async def clean_db():
     """Her testten önce tabloları boşaltır. TRUNCATE, satır trigger'larını tetiklemez."""
     async with engine.begin() as conn:
         await conn.execute(text(f"TRUNCATE {TABLES} RESTART IDENTITY CASCADE"))
+    yield
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limits():
+    """İstek sınırı sayaçları süreç boyunca tutulur; her test temiz başlasın."""
+    login_limiter.reset()
+    order_limiter.reset()
     yield
 
 
