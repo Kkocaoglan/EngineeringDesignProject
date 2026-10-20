@@ -1,35 +1,22 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Decimal from "decimal.js";
 import { createChart, ColorType } from "lightweight-charts";
-import {
-  CartesianGrid,
-  Cell,
-  Legend,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 
 /* ---------- Ayarlar ---------- */
 const API_BASE = "/api";
-const SYMBOLS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT", "AVAXUSDT"];
+const DEFAULT_SYMBOLS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT", "SOLUSDT"];
 
-// Kırıntı tespiti için adım değerleri (Market.tsx'tekiyle aynı, ortak yere taşınabilir)
+// Kırıntı tespiti için adım değerleri (Market.tsx'tekiyle aynı)
 const STEP_SIZES: Record<string, string> = {
   BTCUSDT: "0.00001",
   ETHUSDT: "0.0001",
   BNBUSDT: "0.001",
   SOLUSDT: "0.001",
   XRPUSDT: "0.1",
-  DOGEUSDT: "1",
-  ADAUSDT: "0.1",
-  AVAXUSDT: "0.01",
 };
+
+type MarketSymbol = { symbol: string };
+
 const COLORS = ["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#db2777", "#65a30d", "#475569"];
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -58,13 +45,14 @@ type Candle = { open_time: string; open: string; high: string; low: string; clos
 /* ---------- API ---------- */
 class ApiError extends Error {}
 
-function extractCode(data: any): string {
+function extractCode(data: unknown): string {
+  const obj = data as Record<string, any> | null;
   const c =
-    data?.code ??
-    data?.error?.code ??
-    data?.detail?.code ??
-    (typeof data?.detail === "string" ? data.detail : undefined) ??
-    (typeof data?.error === "string" ? data.error : undefined);
+    obj?.code ??
+    obj?.error?.code ??
+    obj?.detail?.code ??
+    (typeof obj?.detail === "string" ? obj.detail : undefined) ??
+    (typeof obj?.error === "string" ? obj.error : undefined);
   return typeof c === "string" ? c : "UNKNOWN";
 }
 
@@ -139,7 +127,6 @@ function hasQuantity(p: Position) {
 const trFormat = (opts: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat("tr-TR", { timeZone: "Europe/Istanbul", ...opts });
 const fmtTick = trFormat({ hour: "2-digit", minute: "2-digit" });
-const fmtShort = trFormat({ day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const fmtFull = trFormat({
   day: "2-digit", month: "2-digit", year: "numeric",
   hour: "2-digit", minute: "2-digit", second: "2-digit",
@@ -180,9 +167,28 @@ export default function Portfolio() {
   const [pfError, setPfError] = useState("");
   const [history, setHistory] = useState<EquityPoint[]>([]);
   const [histError, setHistError] = useState("");
+  const [symbols, setSymbols] = useState<string[]>(DEFAULT_SYMBOLS);
   const [symbol, setSymbol] = useState("BTCUSDT");
   const [candleError, setCandleError] = useState("");
   const chartRef = useRef<HTMLDivElement>(null);
+  const equityChartRef = useRef<HTMLDivElement>(null);
+
+  // Sembol listesini /api/markets'ten al
+  useEffect(() => {
+    let alive = true;
+    apiGet<MarketSymbol[]>("/markets")
+      .then((rows) => {
+        if (alive && Array.isArray(rows) && rows.length > 0) {
+          setSymbols(rows.map((r) => r.symbol));
+        }
+      })
+      .catch(() => {
+        /* hata durumunda 5 varsayılan sembol kalır */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Portföy: açılışta ve 5 sn'de bir yenilenir
   useEffect(() => {
@@ -225,6 +231,53 @@ export default function Portfolio() {
       clearInterval(timer);
     };
   }, []);
+
+  // Portföy değeri çizgi grafiği (lightweight-charts)
+  useEffect(() => {
+    const el = equityChartRef.current;
+    if (!el || history.length === 0) return;
+
+    const chart = createChart(el, {
+      width: el.clientWidth,
+      height: 260,
+      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "#64748b" },
+      grid: {
+        vertLines: { color: "rgba(148,163,184,0.2)" },
+        horzLines: { color: "rgba(148,163,184,0.2)" },
+      },
+      timeScale: {
+        timeVisible: true,
+        secondsVisible: false,
+        tickMarkFormatter: (t: unknown) => fmtTick.format(new Date(Number(t) * 1000)),
+      },
+      localization: {
+        timeFormatter: (t: unknown) => fmtFull.format(new Date(Number(t) * 1000)),
+      },
+    });
+
+    const lineSeries = chart.addLineSeries({
+      color: "#2563eb",
+      lineWidth: 2,
+    });
+
+    const byTime = new Map<number, { time: number; value: number }>();
+    for (const h of history) {
+      const time = toSeconds(h.taken_at);
+      if (Number.isNaN(time)) continue;
+      byTime.set(time, { time, value: Number(h.equity) });
+    }
+    const data = [...byTime.values()].sort((a, b) => a.time - b.time);
+    lineSeries.setData(data as never);
+    chart.timeScale().fitContent();
+
+    const ro = new ResizeObserver(() => chart.applyOptions({ width: el.clientWidth }));
+    ro.observe(el);
+
+    return () => {
+      ro.disconnect();
+      chart.remove();
+    };
+  }, [history]);
 
   // Mum grafiği: coin değişince yeniden kurulur
   useEffect(() => {
@@ -297,23 +350,33 @@ export default function Portfolio() {
   const dustPositions = useMemo(() => openPositions.filter(isDust), [openPositions]);
 
   // Grafik için sayıya çevrilir (sadece çizim)
-  const pieData = useMemo(() => {
+  const pieSlices = useMemo(() => {
     if (!pf) return [];
     const rows = [
       { name: "Nakit (USDT)", value: Number(pf.cash) },
       ...openPositions.map((p) => ({ name: p.symbol.replace("USDT", ""), value: Number(p.market_value) })),
-    ];
-    return rows.filter((r) => r.value > 0);
-  }, [pf, openPositions]);
+    ].filter((r) => r.value > 0);
 
-  const histData = useMemo(
-    () =>
-      history.map((h) => ({
-        t: fmtShort.format(toDate(h.taken_at)),
-        equity: Number(h.equity),
-      })),
-    [history]
-  );
+    const total = rows.reduce((acc, r) => acc + r.value, 0);
+    if (total <= 0) return [];
+
+    const circumference = 2 * Math.PI * 65;
+    let offset = 0;
+    return rows.map((r, i) => {
+      const ratio = r.value / total;
+      const length = ratio * circumference;
+      const slice = {
+        ...r,
+        color: COLORS[i % COLORS.length],
+        percent: ratio * 100,
+        length,
+        circumference,
+        offset,
+      };
+      offset += length;
+      return slice;
+    });
+  }, [pf, openPositions]);
 
   const summary = pf
     ? [
@@ -419,38 +482,58 @@ export default function Portfolio() {
       <div style={{ ...chartGridStyle, marginTop: 16 }}>
         <div style={{ ...cardStyle, minWidth: 0 }}>
           <h3 style={{ marginTop: 0 }}>Varlık dağılımı</h3>
-          {pieData.length === 0 ? (
+          {pieSlices.length === 0 ? (
             <p>Gösterilecek varlık yok.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={55} outerRadius={95} paddingAngle={2}>
-                  {pieData.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+            <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap", minHeight: 260 }}>
+              <svg width="180" height="180" viewBox="0 0 180 180" style={{ flexShrink: 0 }}>
+                <g transform="rotate(-90 90 90)">
+                  {pieSlices.map((s) => (
+                    <circle
+                      key={s.name}
+                      cx="90"
+                      cy="90"
+                      r="65"
+                      fill="transparent"
+                      stroke={s.color}
+                      strokeWidth="28"
+                      strokeDasharray={`${s.length} ${s.circumference}`}
+                      strokeDashoffset={-s.offset}
+                    >
+                      <title>{`${s.name}: ${money(String(s.value))} USDT (%${s.percent.toFixed(1)})`}</title>
+                    </circle>
                   ))}
-                </Pie>
-                <Tooltip formatter={(v) => `${money(String(v))} USDT`} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+                </g>
+              </svg>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13 }}>
+                {pieSlices.map((s) => (
+                  <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span
+                      style={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: 3,
+                        background: s.color,
+                        display: "inline-block",
+                      }}
+                    />
+                    <span>{s.name}:</span>
+                    <strong>{money(String(s.value))} USDT</strong>
+                    <span style={{ color: "#64748b" }}>(%{s.percent.toFixed(1)})</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 
         <div style={{ ...cardStyle, minWidth: 0 }}>
           <h3 style={{ marginTop: 0 }}>Portföy değeri (son 1 gün, Türkiye saati)</h3>
           {histError && <p className="order-error">{histError}</p>}
-          {!histError && histData.length === 0 ? (
+          {!histError && history.length === 0 ? (
             <p>Henüz değer geçmişi yok.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={histData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="t" minTickGap={30} />
-                <YAxis domain={["auto", "auto"]} width={80} tickFormatter={(v) => money(String(v), 0)} />
-                <Tooltip formatter={(v) => `${money(String(v))} USDT`} />
-                <Line type="monotone" dataKey="equity" stroke="#2563eb" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
+            <div ref={equityChartRef} style={{ width: "100%", height: 260 }} />
           )}
         </div>
       </div>
@@ -460,7 +543,7 @@ export default function Portfolio() {
         <h3 style={{ marginTop: 0 }}>
           Mum grafiği{" "}
           <select value={symbol} onChange={(e) => setSymbol(e.target.value)}>
-            {SYMBOLS.map((s) => (
+            {symbols.map((s) => (
               <option key={s} value={s}>
                 {s.replace("USDT", "/USDT")}
               </option>
