@@ -190,7 +190,7 @@ export default function Portfolio() {
     };
   }, []);
 
-  // Portföy: açılışta ve 5 sn'de bir yenilenir
+  // Portföy: açılışta, 5 sn'de bir ve SSE portfolio_updated olayı geldiğinde yenilenir
   useEffect(() => {
     let alive = true;
     async function load() {
@@ -205,9 +205,23 @@ export default function Portfolio() {
     }
     load();
     const timer = setInterval(load, 5000);
+
+    const es = new EventSource("/api/stream", { withCredentials: true });
+    es.addEventListener("portfolio_updated", (ev) => {
+      if (!alive) return;
+      try {
+        const data: PortfolioData = JSON.parse((ev as MessageEvent).data);
+        setPf(data);
+        setPfError("");
+      } catch {
+        /* bozuk mesaj */
+      }
+    });
+
     return () => {
       alive = false;
       clearInterval(timer);
+      es.close();
     };
   }, []);
 
@@ -552,6 +566,17 @@ export default function Portfolio() {
         </h3>
         {candleError && <p className="order-error">{candleError}</p>}
         <div ref={chartRef} style={{ width: "100%", height: 320 }} />
+        <p style={{ margin: "8px 0 0", fontSize: 11, color: "#64748b", textAlign: "right" }}>
+          Grafik altyapısı:{" "}
+          <a
+            href="https://www.tradingview.com/lightweight-charts/"
+            target="_blank"
+            rel="noreferrer"
+            style={{ color: "#2563eb" }}
+          >
+            TradingView Lightweight Charts™
+          </a>
+        </p>
       </div>
     </section>
   );
