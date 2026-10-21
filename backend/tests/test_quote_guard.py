@@ -43,7 +43,11 @@ def make_quote(
 def test_empty_store_is_down_and_raises_quote_stale():
     clock = FakeClock(NOW)
     store = QuoteStore()
-    guard = QuoteGuard(store=store, clock=clock, stale_seconds=5, symbols=SYMBOLS)
+    provider = BinanceProvider(store=store, symbols=SYMBOLS)
+    provider._connected = True
+    guard = QuoteGuard(
+        store=store, clock=clock, stale_seconds=5, symbols=SYMBOLS, provider=provider
+    )
 
     assert guard.state == "DOWN"
     assert guard.symbols_closed == ["BTCUSDT", "ETHUSDT"]

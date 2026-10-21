@@ -13,6 +13,7 @@ from app.market.clock import SystemClock
 from app.market.provider import QuoteStore
 from app.orders.quotes import Quote
 from app.stream.router import generate_stream_events, stream
+from tests.fake_clock import FakeClock
 
 NOW = datetime(2026, 10, 15, 12, 0, 0, tzinfo=UTC)
 
@@ -58,7 +59,13 @@ async def test_generate_stream_events_disconnected(test_settings: Settings):
 @pytest.mark.asyncio
 async def test_generate_stream_events_connected(test_settings: Settings):
     store = QuoteStore()
-    provider = BinanceProvider(store=store, symbols=["BTCUSDT"])
+    store.update(
+        Quote("BTCUSDT", Decimal("80000"), Decimal("80010"), Decimal("1"), Decimal("1"), NOW)
+    )
+    store.update(
+        Quote("ETHUSDT", Decimal("3000"), Decimal("3001"), Decimal("1"), Decimal("1"), NOW)
+    )
+    provider = BinanceProvider(store=store, symbols=["BTCUSDT", "ETHUSDT"])
     provider._connected = True
 
     events: list[str] = []
@@ -66,7 +73,7 @@ async def test_generate_stream_events_connected(test_settings: Settings):
         settings=test_settings,
         store=store,
         provider=provider,
-        clock=SystemClock(),
+        clock=FakeClock(NOW),
         interval_seconds=0,
     ):
         events.append(event_chunk)

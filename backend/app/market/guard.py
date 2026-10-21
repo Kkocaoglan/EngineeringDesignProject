@@ -55,12 +55,8 @@ class QuoteGuard:
     @property
     def state(self) -> MarketState:
         """Genel piyasa bağlantısı durumu: HEALTHY veya DOWN."""
-        if self._provider is not None:
-            if not getattr(self._provider, "is_connected", True):
-                return "DOWN"
-            if not self._store.snapshot():
-                return "HEALTHY"
-
+        if self._provider is not None and not getattr(self._provider, "is_connected", True):
+            return "DOWN"
         if any(self.is_fresh(symbol) for symbol in self._symbols):
             return "HEALTHY"
         return "DOWN"
@@ -70,8 +66,6 @@ class QuoteGuard:
         """Şu an işleme kapalı olan sembollerin listesi."""
         if self.state == "DOWN":
             return list(self._symbols)
-        if self._provider is not None and not self._store.snapshot():
-            return []
         return [symbol for symbol in self._symbols if not self.is_fresh(symbol)]
 
     def is_tradeable(self, symbol: str) -> bool:
