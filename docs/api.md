@@ -74,5 +74,5 @@ GET /portfolio/history?range=1d → [{"taken_at":"...","equity":"..."}]
 ## Canlı yayın (K3)
 GET /stream (SSE)
 event: quote             data: [{symbol, bid, ask, received_at}, ...]   (saniyede 1)
-event: market_status     data: {state: "HEALTHY|DOWN", symbols_closed: [...]}
+event: market_status     data: {state: "HEALTHY|DOWN", symbols_closed: [...]}   (açılışta + durum değişince tekrar gönderilir)
 event: portfolio_updated data: {GET /portfolio biçimi}   (saniyede 1 + işlem sonrası)

@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends
 
 from app.config import Settings, get_settings
 from app.market.clock import Clock, SystemClock, iso_utc
+from app.market.guard import QuoteGuard
 from app.market.provider import QuoteStore, get_quote_store
 from app.market.schemas import MarketItem
 from app.money import fmt
@@ -32,7 +33,12 @@ async def get_markets(
     clock: ClockDep,
 ) -> list[MarketItem]:
     """Tüm sembollerin son fiyat ve durumunu döner."""
-    now = clock.now()
+    guard = QuoteGuard(
+        store=store,
+        clock=clock,
+        stale_seconds=settings.quote_stale_seconds,
+        symbols=settings.symbol_list,
+    )
     items: list[MarketItem] = []
     for symbol in settings.symbol_list:
         quote = store.get(symbol)
@@ -49,7 +55,6 @@ async def get_markets(
             )
             continue
 
-        is_fresh = (now - quote.received_at).total_seconds() <= settings.quote_stale_seconds
         spread = quote.ask - quote.bid
         items.append(
             MarketItem(
@@ -58,7 +63,7 @@ async def get_markets(
                 ask=fmt(quote.ask),
                 spread=fmt(spread),
                 received_at=iso_utc(quote.received_at),
-                tradeable=bool(is_fresh),
+                tradeable=guard.is_tradeable(symbol),
             )
         )
     return items
