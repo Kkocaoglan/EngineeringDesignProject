@@ -10,8 +10,9 @@ Adımlar (hepsi TEK transaction içinde):
   5. Commit. Arada herhangi bir hata olursa rollback: hiçbir tabloya satır yazılmaz.
 """
 
+import logging
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -47,13 +48,50 @@ class OrderRequest:
     expected_price: Decimal | None = None
 
 
+decision_log = logging.getLogger("app.orders.decision")
+
+
+@dataclass
+class _Decision:
+    """Emir karar logu için toplanan bilgiler (Ek Rehber v1.1, Bölüm 3.2).
+    Bir kullanıcı "param gitti" derse ilk bakılacak yer bu satırlardır."""
+
+    account_id: uuid.UUID | None = None
+    price: Decimal | None = None
+    quote_age_ms: int | None = None
+    extra: dict[str, str] = field(default_factory=dict)
+
+
+def _log_decision(req: OrderRequest, d: _Decision, result: str) -> None:
+    decision_log.info(
+        "order_decision account=%s key=%s symbol=%s side=%s qty=%s result=%s price=%s "
+        "quote_age_ms=%s",
+        d.account_id, req.idempotency_key, req.symbol, req.side, fmt(req.quantity), result,
+        fmt(d.price) if d.price is not None else "-",
+        d.quote_age_ms if d.quote_age_ms is not None else "-",
+    )
+
+
 def iso_utc(dt: datetime) -> str:
     return dt.astimezone(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 async def execute_order(session: AsyncSession, user_id: uuid.UUID, req: OrderRequest,
                         quotes: QuoteSource) -> dict[str, Any]:
-    """Emri işler ve 201 cevabının gövdesini döndürür. Reddedilirse AppError fırlatır."""
+    """Emri işler ve 201 cevabının gövdesini döndürür. Reddedilirse AppError fırlatır.
+    Her çağrı için tek satırlık bir karar kaydı yazılır (FILLED, REPLAYED ya da red kodu)."""
+    decision = _Decision()
+    try:
+        response = await _execute(session, user_id, req, quotes, decision)
+    except AppError as exc:
+        _log_decision(req, decision, exc.code)
+        raise
+    _log_decision(req, decision, decision.extra.get("result", "FILLED"))
+    return response
+
+
+async def _execute(session: AsyncSession, user_id: uuid.UUID, req: OrderRequest,
+                   quotes: QuoteSource, decision: _Decision) -> dict[str, Any]:
     req_hash = request_hash(req.symbol, req.side, req.quantity, req.expected_price)
     if session.in_transaction():
         # Aynı istekte kullanıcıyı bulan okuma (current_user) örtük bir transaction açtı;
@@ -64,10 +102,12 @@ async def execute_order(session: AsyncSession, user_id: uuid.UUID, req: OrderReq
             account = (await session.execute(
                 select(Account).where(Account.user_id == user_id).with_for_update()
             )).scalar_one()
+            decision.account_id = account.id
             existing = await _find_order(session, account.id, req.idempotency_key)
             if existing is not None:
+                decision.extra["result"] = "REPLAYED"
                 return _replay(existing, req_hash)
-            return await _fill_order(session, account, req, req_hash, quotes)
+            return await _fill_order(session, account, req, req_hash, quotes, decision)
     except IntegrityError:
         # Kilitten kaçan nadir bir yarış: UNIQUE(account_id, idempotency_key) ikinci kaydı
         # reddetti. Transaction geri alındı; ilk isteğin sonucunu döndürürüz.
@@ -78,6 +118,7 @@ async def execute_order(session: AsyncSession, user_id: uuid.UUID, req: OrderReq
             existing = await _find_order(session, account_id, req.idempotency_key)
         if existing is None:
             raise
+        decision.extra["result"] = "REPLAYED"
         return _replay(existing, req_hash)
 
 
@@ -106,7 +147,7 @@ async def _load_rules(session: AsyncSession, symbol: str) -> AssetRules:
 
 
 async def _fill_order(session: AsyncSession, account: Account, req: OrderRequest,
-                      req_hash: str, quotes: QuoteSource) -> dict[str, Any]:
+                      req_hash: str, quotes: QuoteSource, decision: _Decision) -> dict[str, Any]:
     settings = get_settings()
     rules = await _load_rules(session, req.symbol)
     try:
@@ -114,6 +155,8 @@ async def _fill_order(session: AsyncSession, account: Account, req: OrderRequest
     except QuoteStale as exc:
         raise AppError(409, "QUOTE_STALE",
                        "Canlı fiyat alınamıyor, emirler geçici olarak kapalı.") from exc
+    decision.price = quote.ask if req.side == "BUY" else quote.bid
+    decision.quote_age_ms = int((datetime.now(UTC) - quote.received_at).total_seconds() * 1000)
 
     check_price_moved(req.side, quote, req.expected_price, settings.price_tolerance)
     fill = price_fill(req.side, req.quantity, quote, rules, settings.fee_rate)

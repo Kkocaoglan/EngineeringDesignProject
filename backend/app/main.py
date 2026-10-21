@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 
@@ -16,6 +17,14 @@ from app.orders.router import router as orders_router
 from app.stream.router import router as stream_router
 
 settings = get_settings()
+
+# Uygulama logları (app.* — ör. emir karar logu, Binance bağlantısı) konsola yazılsın.
+_app_log = logging.getLogger("app")
+if not _app_log.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    _app_log.addHandler(_handler)
+    _app_log.setLevel(logging.INFO)
 
 
 @asynccontextmanager
