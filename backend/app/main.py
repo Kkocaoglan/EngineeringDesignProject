@@ -14,6 +14,7 @@ from app.market.binance import get_binance_provider
 from app.market.exchange_info import sync_assets
 from app.market.router import router as market_router
 from app.orders.router import router as orders_router
+from app.portfolio.router import router as portfolio_router
 from app.stream.router import router as stream_router
 
 settings = get_settings()
@@ -78,6 +79,7 @@ async def origin_check(request: Request, call_next):
 app.include_router(auth_router)
 app.include_router(orders_router)
 app.include_router(market_router)
+app.include_router(portfolio_router)
 app.include_router(stream_router)
 
 
