@@ -8,6 +8,7 @@ GET /stream (SSE):
 
 import asyncio
 import json
+import logging
 import uuid
 from collections.abc import AsyncIterator, Callable
 from typing import Annotated
@@ -19,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.security import COOKIE_NAME, read_session_token
 from app.config import Settings, get_settings
 from app.db import SessionLocal
+from app.errors import AppError
 from app.market.binance import BinanceProvider, get_binance_provider
 from app.market.clock import Clock, SystemClock, iso_utc
 from app.market.guard import QuoteGuard
@@ -27,6 +29,8 @@ from app.money import fmt
 from app.orders.quotes import QuoteSource, get_quote_source
 from app.portfolio.service import build_portfolio
 from app.stream.broadcaster import subscribe_portfolio
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["stream"])
 
@@ -39,6 +43,7 @@ SettingsDep = Annotated[Settings, Depends(get_settings)]
 StoreDep = Annotated[QuoteStore, Depends(get_quote_store)]
 ProviderDep = Annotated[BinanceProvider, Depends(get_binance_provider)]
 ClockDep = Annotated[Clock, Depends(get_stream_clock)]
+QuotesDep = Annotated[QuoteSource, Depends(get_quote_source)]
 
 
 async def _portfolio_sse_chunk(
@@ -59,7 +64,10 @@ async def _portfolio_sse_chunk(
                 clock=clock,
             )
         return f"event: portfolio_updated\ndata: {json.dumps(portfolio.model_dump())}\n\n"
+    except AppError:
+        return None
     except Exception:
+        logger.exception("portfolio_updated hesaplanamadı (user_id=%s)", user_id)
         return None
 
 
@@ -98,8 +106,6 @@ async def generate_stream_events(
                 try:
                     if await request.is_disconnected():
                         break
-                except RuntimeError:
-                    pass
                 except Exception:
                     break
 
@@ -172,11 +178,9 @@ async def stream(
     store: StoreDep,
     provider: ProviderDep,
     clock: ClockDep,
+    quotes: QuotesDep,
 ) -> StreamingResponse:
     """Tek yönlü SSE yayını: quote (saniyede 1) ve market_status."""
-    quotes = app.dependency_overrides.get(get_quote_source, get_quote_source)() if (
-        app := request.scope.get("app")
-    ) else get_quote_source()
     return StreamingResponse(
         generate_stream_events(
             settings=settings,

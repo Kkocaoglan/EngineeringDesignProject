@@ -150,13 +150,17 @@ async def test_order_execution_immediately_pushes_portfolio_updated_on_stream(
     provider = BinanceProvider(store=store, symbols=["BTCUSDT"])
     provider._connected = True
 
+    async def receive():
+        await asyncio.sleep(3600)
+        return {"type": "http.disconnect"}
+
     scope = {
         "type": "http",
         "method": "GET",
         "path": "/stream",
         "headers": [(b"cookie", f"session={session_cookie}".encode())],
     }
-    request = Request(scope)
+    request = Request(scope, receive=receive)
 
     gen = generate_stream_events(
         settings=get_settings(),

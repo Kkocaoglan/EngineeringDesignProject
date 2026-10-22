@@ -14,6 +14,7 @@ from app.auth.security import make_session_token
 from app.config import Settings
 from app.market.binance import BinanceProvider
 from app.market.clock import SystemClock
+from app.market.guard import QuoteGuard
 from app.market.provider import QuoteStore
 from app.orders.quotes import Quote
 from app.portfolio.schemas import PortfolioOut, PositionOut
@@ -98,6 +99,14 @@ async def test_generate_stream_events_connected(test_settings: Settings):
 async def test_stream_endpoint_headers(test_settings: Settings):
     store = QuoteStore()
     provider = BinanceProvider(store=store, symbols=["BTCUSDT"])
+    clock = SystemClock()
+    guard = QuoteGuard(
+        store=store,
+        clock=clock,
+        stale_seconds=test_settings.quote_stale_seconds,
+        symbols=["BTCUSDT"],
+        provider=provider,
+    )
     scope = {"type": "http", "method": "GET", "path": "/stream", "headers": []}
     request = Request(scope)
 
@@ -106,7 +115,8 @@ async def test_stream_endpoint_headers(test_settings: Settings):
         settings=test_settings,
         store=store,
         provider=provider,
-        clock=SystemClock(),
+        clock=clock,
+        quotes=guard,
     )
     assert resp.status_code == 200
     assert resp.media_type == "text/event-stream"
@@ -166,6 +176,10 @@ async def test_stream_emits_portfolio_updated_periodically_and_on_trade_notifica
 
     monkeypatch.setattr(stream_router, "build_portfolio", fake_build_portfolio)
 
+    async def receive():
+        await asyncio.sleep(3600)
+        return {"type": "http.disconnect"}
+
     session_token = make_session_token(uid)
     scope = {
         "type": "http",
@@ -173,7 +187,7 @@ async def test_stream_emits_portfolio_updated_periodically_and_on_trade_notifica
         "path": "/stream",
         "headers": [(b"cookie", f"session={session_token}".encode())],
     }
-    request = Request(scope)
+    request = Request(scope, receive=receive)
 
     # Uzun interval (60 sn) veriyoruz ki anında bildirim mekanizmasının beklemeden çalıştığı
     # kesin olarak kanıtlansın.
