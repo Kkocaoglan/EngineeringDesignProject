@@ -1,13 +1,21 @@
-"""GET /portfolio HTTP uçtan uca testleri (K3 · görev 3.7)."""
+"""GET /portfolio ve canlı portföy yayını HTTP uçtan uca testleri (K3 · görev 3.7 & 3.8)."""
 
+import asyncio
+import json
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 
 import pytest
+from starlette.requests import Request
 
+from app.config import get_settings
 from app.main import app
-from app.orders.quotes import get_quote_source
+from app.market.binance import BinanceProvider
+from app.market.provider import QuoteStore
+from app.orders.quotes import Quote, get_quote_source
 from app.portfolio.router import get_portfolio_clock
+from app.stream.router import generate_stream_events
 from tests.fake_clock import FakeClock
 
 NOW = datetime(2026, 10, 18, 12, 0, 0, tzinfo=UTC)
@@ -125,3 +133,58 @@ async def test_portfolio_is_isolated_per_user(client, assets, market):
     body = r.json()
     assert body["cash"] == "10000.00000000"
     assert body["positions"] == []
+
+
+async def test_order_execution_immediately_pushes_portfolio_updated_on_stream(
+    client, assets, market
+):
+    """Görev 3.8: POST /orders tamamlanınca bağlı SSE akışına beklemeden portfolio_updated gider."""
+    await login(client, "canli@example.com")
+    session_cookie = client.cookies.get("session")
+    assert session_cookie
+
+    store = QuoteStore()
+    store.update(
+        Quote("BTCUSDT", Decimal("100000"), Decimal("100010"), Decimal("10"), Decimal("10"), NOW)
+    )
+    provider = BinanceProvider(store=store, symbols=["BTCUSDT"])
+    provider._connected = True
+
+    scope = {
+        "type": "http",
+        "method": "GET",
+        "path": "/stream",
+        "headers": [(b"cookie", f"session={session_cookie}".encode())],
+    }
+    request = Request(scope)
+
+    gen = generate_stream_events(
+        settings=get_settings(),
+        store=store,
+        provider=provider,
+        clock=FakeClock(NOW),
+        request=request,
+        interval_seconds=60.0,
+        quotes=market,
+    )
+
+    # Başlangıç: market_status -> quote -> ilk portfolio_updated (10.000 USDT nakit)
+    _ = await anext(gen)
+    _ = await anext(gen)
+    initial_pf = json.loads((await anext(gen)).split("data: ")[1])
+    assert initial_pf["cash"] == "10000.00000000"
+    assert initial_pf["positions"] == []
+
+    # Emir verildiği anda 60 sn'lik bekleme süresini beklemeden anında yeni portfolio_updated gelir
+    market.set("BTCUSDT", bid="100000", ask="100010")
+    await order(client, "BUY", "0.05")
+
+    updated_chunk = await asyncio.wait_for(anext(gen), timeout=1.0)
+    assert updated_chunk.startswith("event: portfolio_updated\n")
+    updated_pf = json.loads(updated_chunk.split("data: ")[1])
+    assert updated_pf["cash"] == "4994.49950000"
+    assert len(updated_pf["positions"]) == 1
+    assert updated_pf["positions"][0]["symbol"] == "BTCUSDT"
+    assert updated_pf["positions"][0]["quantity"] == "0.05000000"
+
+    await gen.aclose()
