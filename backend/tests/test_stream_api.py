@@ -10,6 +10,7 @@ from decimal import Decimal
 import pytest
 from starlette.requests import Request
 
+from app.auth.security import make_session_token
 from app.config import Settings
 from app.market.binance import BinanceProvider
 from app.market.clock import SystemClock
@@ -165,6 +166,15 @@ async def test_stream_emits_portfolio_updated_periodically_and_on_trade_notifica
 
     monkeypatch.setattr(stream_router, "build_portfolio", fake_build_portfolio)
 
+    session_token = make_session_token(uid)
+    scope = {
+        "type": "http",
+        "method": "GET",
+        "path": "/stream",
+        "headers": [(b"cookie", f"session={session_token}".encode())],
+    }
+    request = Request(scope)
+
     # Uzun interval (60 sn) veriyoruz ki anında bildirim mekanizmasının beklemeden çalıştığı
     # kesin olarak kanıtlansın.
     gen = generate_stream_events(
@@ -172,8 +182,8 @@ async def test_stream_emits_portfolio_updated_periodically_and_on_trade_notifica
         store=store,
         provider=provider,
         clock=clock,
+        request=request,
         interval_seconds=60.0,
-        user_id=uid,
         session_factory=fake_session_factory,
     )
 

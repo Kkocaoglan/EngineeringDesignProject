@@ -98,6 +98,8 @@ async def generate_stream_events(
                 try:
                     if await request.is_disconnected():
                         break
+                except RuntimeError:
+                    pass
                 except Exception:
                     break
 
