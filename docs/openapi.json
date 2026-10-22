@@ -234,6 +234,80 @@
         "title": "OrderOut",
         "type": "object"
       },
+      "PortfolioOut": {
+        "properties": {
+          "cash": {
+            "title": "Cash",
+            "type": "string"
+          },
+          "equity": {
+            "title": "Equity",
+            "type": "string"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/PositionOut"
+            },
+            "title": "Positions",
+            "type": "array"
+          },
+          "realized_pnl": {
+            "title": "Realized Pnl",
+            "type": "string"
+          },
+          "unrealized_pnl": {
+            "title": "Unrealized Pnl",
+            "type": "string"
+          },
+          "valued_at": {
+            "title": "Valued At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cash",
+          "equity",
+          "realized_pnl",
+          "unrealized_pnl",
+          "valued_at",
+          "positions"
+        ],
+        "title": "PortfolioOut",
+        "type": "object"
+      },
+      "PositionOut": {
+        "properties": {
+          "avg_cost": {
+            "title": "Avg Cost",
+            "type": "string"
+          },
+          "market_value": {
+            "title": "Market Value",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "unrealized_pnl": {
+            "title": "Unrealized Pnl",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "quantity",
+          "avg_cost",
+          "market_value",
+          "unrealized_pnl"
+        ],
+        "title": "PositionOut",
+        "type": "object"
+      },
       "QuoteOut": {
         "properties": {
           "ask": {
@@ -692,6 +766,56 @@
         "summary": "Create Order",
         "tags": [
           "orders"
+        ]
+      }
+    },
+    "/portfolio": {
+      "get": {
+        "description": "Giriş yapmış kullanıcının güncel portföy değerlemesini ve K/Z durumunu döner.",
+        "operationId": "get_portfolio_portfolio_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Portfolio",
+        "tags": [
+          "portfolio"
         ]
       }
     },
