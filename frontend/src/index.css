@@ -181,6 +181,14 @@
   font-size: 12px;
 }
 
+.market-row-closed {
+  display: inline-block;
+  margin-top: 4px;
+  color: #f87171;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .price-up { color: #16a34a; }
 .price-down { color: #dc2626; }
 
