@@ -37,6 +37,7 @@ from app.orders.rules import (
     price_fill,
     request_hash,
 )
+from app.stream.broadcaster import notify_portfolio_updated
 
 
 @dataclass(frozen=True)
@@ -86,7 +87,10 @@ async def execute_order(session: AsyncSession, user_id: uuid.UUID, req: OrderReq
     except AppError as exc:
         _log_decision(req, decision, exc.code)
         raise
-    _log_decision(req, decision, decision.extra.get("result", "FILLED"))
+    result = decision.extra.get("result", "FILLED")
+    _log_decision(req, decision, result)
+    if result == "FILLED":
+        notify_portfolio_updated(user_id)
     return response
 
 
