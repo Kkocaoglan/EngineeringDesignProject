@@ -2,7 +2,7 @@
 
 GET /stream (SSE):
 - event: quote → saniyede bir [{symbol, bid, ask, received_at}, ...]
-- event: market_status → {state: "HEALTHY|DOWN", symbols_closed: [...]}
+- event: market_status → {state: "HEALTHY|DOWN", source: "live|replay", symbols_closed: [...]}
 - event: portfolio_updated → giriş yapmış kullanıcıya saniyede bir + işlem sonrası anında
 """
 
@@ -87,6 +87,7 @@ async def generate_stream_events(
         stale_seconds=settings.quote_stale_seconds,
         symbols=settings.symbol_list,
         provider=provider,
+        source=settings.market_source,
     )
     resolved_user_id = user_id
     if resolved_user_id is None and request is not None:

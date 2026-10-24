@@ -10,7 +10,7 @@ from decimal import Decimal
 
 import pytest
 
-from app.config import Settings
+from app.config import Settings, get_settings
 from app.market.binance import BinanceProvider
 from app.market.guard import QuoteGuard, get_quote_guard, get_tradeable_quote
 from app.market.provider import QuoteStore, get_quote_store
@@ -53,6 +53,7 @@ def test_empty_store_is_down_and_raises_quote_stale():
     assert guard.symbols_closed == ["BTCUSDT", "ETHUSDT"]
     assert guard.market_status() == {
         "state": "DOWN",
+        "source": get_settings().market_source,
         "symbols_closed": ["BTCUSDT", "ETHUSDT"],
     }
     assert guard.is_tradeable("BTCUSDT") is False
@@ -167,6 +168,7 @@ async def test_stream_emits_market_status_when_state_changes():
         secret_key="test-secret-key-at-least-32-characters-long",
         symbols="BTCUSDT,ETHUSDT",
         quote_stale_seconds=5,
+        market_source="live",
     )
 
     gen = generate_stream_events(
@@ -182,6 +184,7 @@ async def test_stream_emits_market_status_when_state_changes():
     assert first_event.startswith("event: market_status\n")
     assert json.loads(first_event.split("data: ")[1]) == {
         "state": "HEALTHY",
+        "source": "live",
         "symbols_closed": [],
     }
 
@@ -200,6 +203,7 @@ async def test_stream_emits_market_status_when_state_changes():
     assert fourth_event.startswith("event: market_status\n")
     assert json.loads(fourth_event.split("data: ")[1]) == {
         "state": "DOWN",
+        "source": "live",
         "symbols_closed": ["BTCUSDT", "ETHUSDT"],
     }
     _ = await anext(gen)  # quote olayı
@@ -212,6 +216,7 @@ async def test_stream_emits_market_status_when_state_changes():
     assert recovered_event.startswith("event: market_status\n")
     assert json.loads(recovered_event.split("data: ")[1]) == {
         "state": "HEALTHY",
+        "source": "live",
         "symbols_closed": [],
     }
     await gen.aclose()

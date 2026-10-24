@@ -341,6 +341,7 @@ async def test_replay_provider_with_sse_stream_offline():
         database_url="postgresql+asyncpg://app:x@localhost:5432/none",
         secret_key="test-secret-key-at-least-32-characters-long",
         symbols="BTCUSDT,ETHUSDT",
+        market_source="replay",
     )
 
     gen = generate_stream_events(
@@ -355,6 +356,7 @@ async def test_replay_provider_with_sse_stream_offline():
     assert ev_status.startswith("event: market_status\n")
     status_data = json.loads(ev_status.split("data: ")[1])
     assert status_data["state"] == "HEALTHY"
+    assert status_data["source"] == "replay"
 
     ev_quote = await anext(gen)
     assert ev_quote.startswith("event: quote\n")
