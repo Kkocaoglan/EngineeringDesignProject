@@ -2,7 +2,7 @@
 
 GET /stream (SSE):
 - event: quote → saniyede bir [{symbol, bid, ask, received_at}, ...]
-- event: market_status → {state: "HEALTHY|DOWN", symbols_closed: [...]}
+- event: market_status → {state: "HEALTHY|DOWN", source: "live|replay", symbols_closed: [...]}
 - event: portfolio_updated → giriş yapmış kullanıcıya saniyede bir + işlem sonrası anında
 """
 
@@ -21,10 +21,9 @@ from app.auth.security import COOKIE_NAME, read_session_token
 from app.config import Settings, get_settings
 from app.db import SessionLocal
 from app.errors import AppError
-from app.market.binance import BinanceProvider, get_binance_provider
 from app.market.clock import Clock, SystemClock, iso_utc
 from app.market.guard import QuoteGuard
-from app.market.provider import QuoteStore, get_quote_store
+from app.market.provider import MarketDataProvider, QuoteStore, get_market_provider, get_quote_store
 from app.money import fmt
 from app.orders.quotes import QuoteSource, get_quote_source
 from app.portfolio.service import build_portfolio
@@ -41,7 +40,7 @@ def get_stream_clock() -> Clock:
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 StoreDep = Annotated[QuoteStore, Depends(get_quote_store)]
-ProviderDep = Annotated[BinanceProvider, Depends(get_binance_provider)]
+ProviderDep = Annotated[MarketDataProvider, Depends(get_market_provider)]
 ClockDep = Annotated[Clock, Depends(get_stream_clock)]
 QuotesDep = Annotated[QuoteSource, Depends(get_quote_source)]
 
@@ -74,7 +73,7 @@ async def _portfolio_sse_chunk(
 async def generate_stream_events(
     settings: Settings,
     store: QuoteStore,
-    provider: BinanceProvider,
+    provider: MarketDataProvider,
     clock: Clock,
     request: Request | None = None,
     interval_seconds: float = 1.0,
@@ -88,6 +87,7 @@ async def generate_stream_events(
         stale_seconds=settings.quote_stale_seconds,
         symbols=settings.symbol_list,
         provider=provider,
+        source=settings.market_source,
     )
     resolved_user_id = user_id
     if resolved_user_id is None and request is not None:
