@@ -1,6 +1,7 @@
 """Ortak test ayarları. Testler gerçek PostgreSQL kullanır (CI'da servis, yerelde docker db)."""
 
 import uuid
+from datetime import UTC, datetime
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -8,6 +9,9 @@ from sqlalchemy import text
 
 from app.db import engine
 from app.main import app
+from app.market.clock import FakeClock
+from app.market.provider import QuoteStore
+from app.market.replay import ReplayProvider
 from app.ratelimit import login_limiter, order_limiter
 from tests.fakes import FakeQuoteSource
 
@@ -34,6 +38,30 @@ def reset_rate_limits():
 async def client():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://localhost") as c:
         yield c
+
+
+@pytest.fixture
+def fake_clock() -> FakeClock:
+    """Sahte saat fixture'ı. Testlerin deterministik ve internetsiz çalışması için kullanılır."""
+    return FakeClock(datetime(2026, 10, 15, 12, 0, 0, tzinfo=UTC))
+
+
+@pytest.fixture
+def replay_store() -> QuoteStore:
+    return QuoteStore()
+
+
+@pytest.fixture
+def replay_provider(replay_store: QuoteStore, fake_clock: FakeClock) -> ReplayProvider:
+    """Kayıtlı bookTicker fixture'ını sahte saat ile oynatan sağlayıcı fixture'ı."""
+    provider = ReplayProvider(
+        store=replay_store,
+        clock=fake_clock,
+        loop_playback=False,
+        speed=0.0,
+    )
+    provider.load_snapshot()
+    return provider
 
 
 @pytest.fixture

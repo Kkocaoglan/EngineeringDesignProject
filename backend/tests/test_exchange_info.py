@@ -7,6 +7,7 @@ from pathlib import Path
 import httpx
 from sqlalchemy import text
 
+from app.config import get_settings
 from app.db import engine
 from app.market.exchange_info import parse_asset_rows, sync_assets
 
@@ -72,7 +73,8 @@ async def test_sync_updates_existing_rows():
     assert rows["BTCUSDT"][5] == Decimal("5")
 
 
-async def test_binance_unreachable_keeps_old_values_and_does_not_crash():
+async def test_binance_unreachable_keeps_old_values_and_does_not_crash(monkeypatch):
+    monkeypatch.setattr(get_settings(), "market_source", "live")
     async with _client(_ok) as client:
         await sync_assets(SYMBOLS, client=client)
     before = await _all_assets()
@@ -83,7 +85,20 @@ async def test_binance_unreachable_keeps_old_values_and_does_not_crash():
     assert await _all_assets() == before
 
 
-async def test_http_error_and_broken_payload_do_not_crash():
+async def test_replay_mode_loads_fixture_when_binance_unreachable(monkeypatch):
+    monkeypatch.setattr(get_settings(), "market_source", "replay")
+    async with _client(_down) as client:
+        assert await sync_assets(SYMBOLS, client=client) == 5
+
+    rows = await _all_assets()
+    assert sorted(rows) == sorted(SYMBOLS)
+    assert rows["BTCUSDT"] == (
+        "BTC", "USDT", Decimal("0.01"), Decimal("0.00001"), Decimal("0.00001"), Decimal("5")
+    )
+
+
+async def test_http_error_and_broken_payload_do_not_crash(monkeypatch):
+    monkeypatch.setattr(get_settings(), "market_source", "live")
     def server_error(request: httpx.Request) -> httpx.Response:
         return httpx.Response(503)
 

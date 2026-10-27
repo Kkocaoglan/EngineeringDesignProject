@@ -30,6 +30,7 @@ class QuoteGuard:
         stale_seconds: float | int | None = None,
         symbols: Sequence[str] | None = None,
         provider: Any | None = None,
+        source: str | None = None,
     ) -> None:
         settings = get_settings()
         self._store = store if store is not None else get_quote_store()
@@ -43,6 +44,7 @@ class QuoteGuard:
             s.upper() for s in (symbols if symbols is not None else settings.symbol_list)
         ]
         self._provider = provider
+        self._source = source if source is not None else settings.market_source
 
     def is_fresh(self, symbol: str) -> bool:
         """Sembolün bellekteki son fiyatı stale_seconds eşiği içinde mi?"""
@@ -88,6 +90,7 @@ class QuoteGuard:
         """SSE market_status olayı için durum sözlüğü."""
         return {
             "state": self.state,
+            "source": self._source,
             "symbols_closed": self.symbols_closed,
         }
 
