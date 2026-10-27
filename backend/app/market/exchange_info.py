@@ -9,6 +9,7 @@ import json
 import logging
 from collections.abc import Sequence
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -23,6 +24,12 @@ logger = logging.getLogger(__name__)
 
 FETCH_TIMEOUT = 10.0
 _UPDATE_COLUMNS = ("base_asset", "quote_asset", "tick_size", "step_size", "min_qty", "min_notional")
+DEFAULT_FIXTURE_PATH = (
+    Path(__file__).resolve().parent.parent.parent
+    / "tests"
+    / "fixtures"
+    / "exchange_info_sample.json"
+)
 
 
 async def fetch_exchange_info(
@@ -93,16 +100,32 @@ async def sync_assets(
 ) -> int:
     """Kuralları çekip assets tablosuna upsert eder; yazılan satır sayısını döner.
 
-    Binance'e ulaşılamaz ya da cevap bozuksa hata fırlatmaz, 0 döner: tablodaki
-    son değerler olduğu gibi kalır ve uygulama onlarla devam eder.
+    Binance'e ulaşılamaz ya da cevap bozuksa hata fırlatmaz:
+    - replay modundaysa tests/fixtures/exchange_info_sample.json dosyasından yükler;
+    - diğer modlarda 0 döner: tablodaki son değerler kalır ve uygulama onlarla devam eder.
     """
-    symbols = list(symbols) if symbols is not None else get_settings().symbol_list
+    settings = get_settings()
+    symbols = list(symbols) if symbols is not None else settings.symbol_list
     try:
         payload = await fetch_exchange_info(symbols, client)
         rows = parse_asset_rows(payload, symbols)
     except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
-        logger.warning("exchangeInfo alınamadı, assets tablosundaki son değerlerle devam: %r", exc)
-        return 0
+        if settings.market_source != "replay":
+            logger.warning(
+                "exchangeInfo alınamadı, assets tablosundaki son değerlerle devam: %r", exc
+            )
+            return 0
+        try:
+            payload = json.loads(DEFAULT_FIXTURE_PATH.read_text(encoding="utf-8"))
+            rows = parse_asset_rows(payload, symbols)
+            logger.info(
+                "exchangeInfo indirilemedi (%r), replay fixture'ından yüklendi: %s",
+                exc,
+                DEFAULT_FIXTURE_PATH.name,
+            )
+        except (OSError, ValueError, KeyError, TypeError) as fallback_exc:
+            logger.warning("Replay exchangeInfo fixture okunamadı: %r", fallback_exc)
+            return 0
     if not rows:
         logger.warning("exchangeInfo'dan hiç geçerli kural çıkmadı, assets tablosu değişmedi")
         return 0

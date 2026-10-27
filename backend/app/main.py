@@ -37,6 +37,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     if settings.market_source == "live":
         provider = get_binance_provider()
         market_task = asyncio.create_task(provider.run_forever())
+    elif settings.market_source == "replay":
+        from app.market.replay import get_replay_provider
+
+        provider = get_replay_provider()
+        provider.load_snapshot()
+        market_task = asyncio.create_task(provider.run_forever())
     try:
         yield
     finally:
