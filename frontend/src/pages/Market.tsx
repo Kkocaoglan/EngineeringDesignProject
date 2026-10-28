@@ -185,8 +185,8 @@ export default function Market() {
     if (user?.cash) setCash(user.cash);
   }, [user?.cash]);
 
-  // Canlı SSE veri akışı (Rehber 2.5 - useLiveStream)
-  const { status, isLive, setStatus } = useLiveStream((quotes) => {
+  // Canlı SSE veri akışı (Rehber 2.5 & 2.10 - useLiveStream)
+  const { status, isLive, symbolsClosed, setStatus } = useLiveStream((quotes) => {
     setCoins((prev) =>
       prev.map((c) => {
         const q = quotes.find((x) => x.symbol === c.symbol);
@@ -231,6 +231,9 @@ export default function Market() {
   }, [setStatus]);
 
   const selectedCoin = coins.find((c) => c.symbol === selected) ?? null;
+  const isSelectedClosed =
+    selectedCoin !== null && (!selectedCoin.tradeable || symbolsClosed.includes(selectedCoin.symbol));
+  const isSelectedTradeable = Boolean(selectedCoin && isLive && !isSelectedClosed);
   // Alışta ask, satışta bid (string olarak, sözleşme gereği)
   const livePrice = selectedCoin ? (side === "BUY" ? selectedCoin.ask : selectedCoin.bid) : null;
   const preview =
@@ -247,7 +250,17 @@ export default function Market() {
   }
 
   async function handleSubmit() {
-    if (submitting || !preview || preview.tooSmall || !selectedCoin || livePrice === null) return;
+    if (
+      submitting ||
+      !isLive ||
+      !isSelectedTradeable ||
+      !preview ||
+      preview.tooSmall ||
+      !selectedCoin ||
+      livePrice === null
+    ) {
+      return;
+    }
     setSubmitting(true);
     setError("");
     setSuccess("");
@@ -287,7 +300,10 @@ export default function Market() {
       </div>
 
       <div className="market-notice">
-        {isLive ? "🟢" : "🔴"} Veri durumu: {status}. Emir vermek için tablodan bir coin seç.
+        {isLive ? "🟢" : status === "Bağlanıyor..." ? "🟡" : "🔴"} Veri durumu: {status}.{" "}
+        {!isLive
+          ? "Canlı veri alınamıyor, emirler geçici olarak kapalı."
+          : "Emir vermek için tablodan bir coin seç."}
       </div>
 
       <div className="market-table-wrapper">
@@ -309,6 +325,7 @@ export default function Market() {
                   : null;
               const d = digitsOf(coin.symbol);
               const effect = coin.dir ? `flash-${coin.dir} price-${coin.dir}` : "";
+              const coinClosed = !coin.tradeable || symbolsClosed.includes(coin.symbol);
 
               return (
                 <tr
@@ -322,11 +339,23 @@ export default function Market() {
                   <td>
                     <strong>{coin.symbol.replace("USDT", "/USDT")}</strong>
                     <span className="market-coin-name">{NAMES[coin.symbol] ?? ""}</span>
+                    {!isLive ? (
+                      <span className="market-row-closed">Bağlantı yok — işleme kapalı</span>
+                    ) : coinClosed ? (
+                      <span className="market-row-closed">İşleme kapalı</span>
+                    ) : null}
                   </td>
                   <td key={`bid-${coin.tick}`} className={effect}>{fmt(coin.bid, d)}</td>
                   <td key={`ask-${coin.tick}`} className={effect}>{fmt(coin.ask, d)}</td>
                   <td>{fmt(coin.spread, 6)}</td>
-                  <td>{seconds === null ? "—" : `${seconds} sn önce`}</td>
+                  <td>
+                    {seconds === null ? "—" : `${seconds} sn önce`}
+                    {!isLive ? (
+                      <span className="market-row-closed"> (Canlı veri yok)</span>
+                    ) : coinClosed ? (
+                      <span className="market-row-closed"> (İşleme kapalı)</span>
+                    ) : null}
+                  </td>
                 </tr>
               );
             })}
@@ -391,19 +420,26 @@ export default function Market() {
             </div>
           )}
 
-          {!selectedCoin.tradeable && (
-            <p className="order-error">Bu coin için işlem şu an kapalı.</p>
-          )}
+          {!isLive ? (
+            <p className="order-error" role="alert">
+              Canlı veri alınamıyor, emirler geçici olarak kapalı. ({status})
+            </p>
+          ) : isSelectedClosed ? (
+            <p className="order-error" role="alert">
+              Bu coin için işlem şu an kapalı.
+            </p>
+          ) : null}
 
           <button
             type="button"
             onClick={handleSubmit}
             disabled={
               submitting ||
+              !isLive ||
+              !isSelectedTradeable ||
               !preview ||
               preview.tooSmall ||
-              preview.insufficient ||
-              !selectedCoin.tradeable
+              preview.insufficient
             }
           >
             {checking ? "Sonuç kontrol ediliyor..." : submitting ? "Gönderiliyor..." : "Emri ver"}
