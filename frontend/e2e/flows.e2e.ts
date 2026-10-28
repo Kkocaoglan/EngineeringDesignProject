@@ -486,4 +486,39 @@ test.describe("Sanal Portföy Uçtan Uca (E2E) Test Akışları (Görev 2.11)", 
     await expect(page.getByText(/işlem şu an kapalı|emirler geçici olarak kapalı/i)).toBeVisible();
     await expect(page.getByRole("button", { name: "Emri ver" })).toBeDisabled();
   });
+
+  test("Akış 6 (Gerçek Sunucu - MARKET_SOURCE=replay): Kayıt -> Giriş -> BTC alım -> Geçmişte görünme", async ({
+    page,
+    request,
+  }) => {
+    const health = await request.get("http://localhost:8000/health").catch(() => null);
+    test.skip(
+      !health || !health.ok(),
+      "Gerçek backend (localhost:8000) çalışmadığında gerçek sunucu akışı atlanır."
+    );
+
+    const uniqueEmail = `e2e_${Date.now()}@ornek.edu.tr`;
+    await page.goto("/register");
+    await page.locator("#register-email").fill(uniqueEmail);
+    await page.locator("#register-password").fill("GucluSifre123");
+    await page.locator("#confirm-password").fill("GucluSifre123");
+    await page.getByRole("button", { name: "Kayıt Ol" }).click();
+
+    await expect(page).toHaveURL(/\/market$/);
+    await expect(page.getByText(uniqueEmail)).toBeVisible();
+    await expect(page.getByText("10000.00 USDT").first()).toBeVisible();
+
+    await expect(page.getByRole("cell", { name: /BTC\/USDT/ })).toBeVisible();
+    await page.locator(".order-form input").fill("0.01");
+    await page.getByRole("button", { name: "Emri ver" }).click();
+
+    await expect(page.getByText(/Emir gerçekleşti: 0\.01 BTCUSDT/)).toBeVisible({
+      timeout: 10000,
+    });
+
+    await page.getByRole("link", { name: "Geçmiş", exact: true }).click();
+    await expect(page).toHaveURL(/\/history$/);
+    await expect(page.getByRole("cell", { name: "BTC/USDT" }).first()).toBeVisible();
+    await expect(page.getByRole("cell", { name: "Alış" }).first()).toBeVisible();
+  });
 });
