@@ -203,7 +203,6 @@ export default function Market() {
           ask: q.ask,
           received_at: q.received_at,
           spread: new Decimal(q.ask).minus(q.bid).toFixed(),
-          tradeable: true,
           dir,
           tick,
         };
