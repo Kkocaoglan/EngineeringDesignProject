@@ -43,6 +43,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         provider = get_replay_provider()
         provider.load_snapshot()
         market_task = asyncio.create_task(provider.run_forever())
+    elif settings.market_source == "random":
+        from app.market.random_walk import get_random_walk_provider
+
+        provider = get_random_walk_provider()
+        provider.load_snapshot()
+        market_task = asyncio.create_task(provider.run_forever())
     try:
         yield
     finally:

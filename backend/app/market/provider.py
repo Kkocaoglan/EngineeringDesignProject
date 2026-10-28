@@ -62,6 +62,7 @@ def get_market_provider() -> MarketDataProvider:
     MARKET_SOURCE ayarına göre:
     - 'live': Binance WebSocket sağlayıcısı
     - 'replay': Kayıtlı fixture üzerinden oynatan ReplayProvider
+    - 'random': İnternetsiz rastgele yürüyüş üreten RandomWalkProvider
     """
     from app.config import get_settings
 
@@ -70,6 +71,10 @@ def get_market_provider() -> MarketDataProvider:
         from app.market.replay import get_replay_provider
 
         return get_replay_provider()
+    if settings.market_source == "random":
+        from app.market.random_walk import get_random_walk_provider
+
+        return get_random_walk_provider()
     from app.market.binance import get_binance_provider
 
     return get_binance_provider()
