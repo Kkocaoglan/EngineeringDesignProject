@@ -1,6 +1,7 @@
 import type { FC } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useReplayMode } from "../hooks/useLiveStream";
 import Decimal from "decimal.js";
 
 function formatCash(val?: string) {
@@ -14,6 +15,7 @@ function formatCash(val?: string) {
 
 export const Navbar: FC = () => {
   const { user, logout } = useAuth();
+  const isReplay = useReplayMode();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -23,6 +25,25 @@ export const Navbar: FC = () => {
 
   return (
     <header style={{ background: "#151e30", borderBottom: "1px solid #293449" }}>
+      {/* REPLAY modu sabit turuncu uyarı bandı (Rehber 2.10) */}
+      {isReplay && (
+        <div
+          role="status"
+          data-testid="replay-banner"
+          style={{
+            background: "#ea580c",
+            color: "#ffffff",
+            padding: "8px 12px",
+            textAlign: "center",
+            fontSize: "13px",
+            fontWeight: "bold",
+            borderBottom: "1px solid #c2410c",
+          }}
+        >
+          REPLAY — kayıtlı veri, canlı değil.
+        </div>
+      )}
+
       {/* Sabit uyarı bandı (Rehber Şartı) */}
       <div
         style={{
