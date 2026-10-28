@@ -16,11 +16,64 @@ export type QuoteUpdate = {
 
 export type MarketStatusEvent = {
   state: "HEALTHY" | "DOWN";
+  source?: string;
   symbols_closed?: string[];
 };
 
+const REPLAY_EVENT = "replay-mode-change";
+
+let globalReplayDetected: boolean | null = null;
+
+export function setReplayDetected(value: boolean) {
+  if (globalReplayDetected !== value) {
+    globalReplayDetected = value;
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(REPLAY_EVENT, { detail: value }));
+    }
+  }
+}
+
+export function useReplayMode(): boolean {
+  const [isReplay, setIsReplay] = useState<boolean>(() => globalReplayDetected === true);
+
+  useEffect(() => {
+    const sync = () => setIsReplay(globalReplayDetected === true);
+    window.addEventListener(REPLAY_EVENT, sync);
+    sync();
+
+    let es: EventSource | null = null;
+    if (globalReplayDetected === null) {
+      es = new EventSource("/api/stream", { withCredentials: true });
+      es.addEventListener("market_status", (e) => {
+        try {
+          const s: MarketStatusEvent = JSON.parse((e as MessageEvent).data);
+          setReplayDetected(s.source === "replay");
+        } catch {
+          /* bozuk mesaj */
+        } finally {
+          es?.close();
+          es = null;
+        }
+      });
+      es.onerror = () => {
+        es?.close();
+        es = null;
+      };
+    }
+
+    return () => {
+      window.removeEventListener(REPLAY_EVENT, sync);
+      es?.close();
+    };
+  }, []);
+
+  return isReplay;
+}
+
 export function useLiveStream(onQuote?: (quotes: QuoteUpdate[]) => void) {
   const [status, setStatus] = useState<MarketStatus>("Bağlanıyor...");
+  const [symbolsClosed, setSymbolsClosed] = useState<string[]>([]);
+  const isReplay = useReplayMode();
   const onQuoteRef = useRef(onQuote);
 
   useEffect(() => {
@@ -55,6 +108,8 @@ export function useLiveStream(onQuote?: (quotes: QuoteUpdate[]) => void) {
         setStatus(
           s.state === "HEALTHY" ? "Canlı bağlantı aktif" : "Canlı veri alınamıyor"
         );
+        setSymbolsClosed(Array.isArray(s.symbols_closed) ? s.symbols_closed : []);
+        setReplayDetected(s.source === "replay");
       } catch {
         /* bozuk mesaj */
       }
@@ -72,5 +127,5 @@ export function useLiveStream(onQuote?: (quotes: QuoteUpdate[]) => void) {
 
   const isLive = status === "Canlı bağlantı aktif";
 
-  return { status, isLive, setStatus };
+  return { status, isLive, symbolsClosed, isReplay, setStatus };
 }
