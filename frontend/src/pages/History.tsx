@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Decimal from "decimal.js";
+import { useLanguage } from "../context/languageContextDef";
 
 const API_BASE = "/api";
 const PAGE_LIMIT = 50;
@@ -84,6 +85,8 @@ function safe(fn: () => string, fallback: string) {
 }
 
 export default function TradeHistory() {
+  const { lang } = useLanguage();
+  const en = lang === "en";
   const [trades, setTrades] = useState<Trade[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -114,8 +117,12 @@ export default function TradeHistory() {
   return (
     <section className="market-page">
       <div className="market-heading">
-        <h1>Geçmiş</h1>
-        <p>Gerçekleşen işlemlerin (en yeniden eskiye, Türkiye saati).</p>
+        <h1>{en ? "Trade History" : "Geçmiş"}</h1>
+        <p>
+          {en
+            ? "Your executed trades (newest to oldest, Turkey time)."
+            : "Gerçekleşen işlemlerin (en yeniden eskiye, Türkiye saati)."}
+        </p>
       </div>
 
       {error && <p className="order-error">{error}</p>}
@@ -124,13 +131,13 @@ export default function TradeHistory() {
         <table className="market-table">
           <thead>
             <tr>
-              <th>Tarih</th>
+              <th>{en ? "Date" : "Tarih"}</th>
               <th>Coin</th>
-              <th>Yön</th>
-              <th>Miktar</th>
-              <th>Fiyat (USDT)</th>
-              <th>Komisyon (USDT)</th>
-              <th>Toplam (USDT)</th>
+              <th>{en ? "Side" : "Yön"}</th>
+              <th>{en ? "Quantity" : "Miktar"}</th>
+              <th>{en ? "Price (USDT)" : "Fiyat (USDT)"}</th>
+              <th>{en ? "Fee (USDT)" : "Komisyon (USDT)"}</th>
+              <th>{en ? "Total (USDT)" : "Toplam (USDT)"}</th>
             </tr>
           </thead>
           <tbody>
@@ -139,7 +146,7 @@ export default function TradeHistory() {
                 <td>{formatDate(t.created_at)}</td>
                 <td><strong>{t.symbol.replace("USDT", "/USDT")}</strong></td>
                 <td className={t.side === "BUY" ? "price-up" : "price-down"}>
-                  {t.side === "BUY" ? "Alış" : "Satış"}
+                  {t.side === "BUY" ? (en ? "Buy" : "Alış") : en ? "Sell" : "Satış"}
                 </td>
                 <td>{safe(() => new Decimal(t.quantity).toString(), t.quantity)}</td>
                 <td>{safe(() => new Decimal(t.price).toFixed(2), t.price)}</td>
@@ -149,23 +156,35 @@ export default function TradeHistory() {
             ))}
             {!loading && !error && trades.length === 0 && (
               <tr>
-                <td colSpan={7}>Henüz işlem yok.</td>
+                <td colSpan={7}>{en ? "No trades yet." : "Henüz işlem yok."}</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      <div>
+      <div style={{ marginTop: 16, display: "flex", gap: 10, alignItems: "center" }}>
         {nextCursor && (
-          <button type="button" onClick={() => load(nextCursor)} disabled={loading}>
-            {loading ? "Yükleniyor..." : "Daha fazla yükle"}
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => load(nextCursor)}
+            disabled={loading}
+          >
+            {loading ? (en ? "Loading..." : "Yükleniyor...") : en ? "Load More" : "Daha fazla yükle"}
           </button>
         )}
-        <button type="button" onClick={() => load(null)} disabled={loading}>
-          Yenile
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => load(null)}
+          disabled={loading}
+        >
+          {en ? "Refresh" : "Yenile"}
         </button>
-        {loading && trades.length === 0 && <span> Yükleniyor...</span>}
+        {loading && trades.length === 0 && (
+          <span style={{ color: "#94a3b8", fontSize: 13 }}> {en ? "Loading..." : "Yükleniyor..."}</span>
+        )}
       </div>
     </section>
   );

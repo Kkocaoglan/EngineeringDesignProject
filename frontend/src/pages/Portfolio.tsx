@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Decimal from "decimal.js";
 import { createChart, ColorType } from "lightweight-charts";
+import { useLanguage } from "../context/languageContextDef";
 
 /* ---------- Ayarlar ---------- */
 const API_BASE = "/api";
@@ -142,11 +143,12 @@ function toSeconds(iso: string) {
 
 /* ---------- Stil ---------- */
 const cardStyle: CSSProperties = {
-  padding: 16,
-  border: "1px solid #cbd5e1",
+  padding: "18px 20px",
+  border: "1px solid #24324a",
   borderRadius: 12,
-  background: "#ffffff",
-  color: "#0f172a",
+  background: "#131c2e",
+  color: "#f1f5f9",
+  boxShadow: "0 8px 24px -10px rgba(0, 0, 0, 0.4)",
 };
 const gridStyle: CSSProperties = {
   display: "grid",
@@ -163,6 +165,8 @@ const chartGridStyle: CSSProperties = {
 
 /* ---------- Sayfa ---------- */
 export default function Portfolio() {
+  const { lang } = useLanguage();
+  const en = lang === "en";
   const [pf, setPf] = useState<PortfolioData | null>(null);
   const [pfError, setPfError] = useState("");
   const [history, setHistory] = useState<EquityPoint[]>([]);
@@ -394,25 +398,28 @@ export default function Portfolio() {
 
   const summary = pf
     ? [
-        { label: "Nakit (USDT)", value: pf.cash, signed: false },
-        { label: "Toplam değer (USDT)", value: pf.equity, signed: false },
-        { label: "Gerçekleşmiş K/Z (USDT)", value: pf.realized_pnl, signed: true },
-        { label: "Gerçekleşmemiş K/Z (USDT)", value: pf.unrealized_pnl, signed: true },
+        { label: en ? "Cash (USDT)" : "Nakit (USDT)", value: pf.cash, signed: false },
+        { label: en ? "Total Equity (USDT)" : "Toplam değer (USDT)", value: pf.equity, signed: false },
+        { label: en ? "Realized PnL (USDT)" : "Gerçekleşmiş K/Z (USDT)", value: pf.realized_pnl, signed: true },
+        { label: en ? "Unrealized PnL (USDT)" : "Gerçekleşmemiş K/Z (USDT)", value: pf.unrealized_pnl, signed: true },
       ]
     : [];
 
   return (
     <section className="market-page">
       <div className="market-heading">
-        <h1>Portföy</h1>
+        <h1>{en ? "Portfolio" : "Portföy"}</h1>
         <p>
-          Varlıkların ve kâr/zarar durumun.
-          {pf && ` Son değerleme: ${fmtFull.format(toDate(pf.valued_at))}`}
+          {en ? "Your assets and profit/loss performance." : "Varlıkların ve kâr/zarar durumun."}
+          {pf &&
+            (en
+              ? ` Last valuation: ${fmtFull.format(toDate(pf.valued_at))}`
+              : ` Son değerleme: ${fmtFull.format(toDate(pf.valued_at))}`)}
         </p>
       </div>
 
       {pfError && <p className="order-error">{pfError}</p>}
-      {!pf && !pfError && <p>Yükleniyor...</p>}
+      {!pf && !pfError && <p>{en ? "Loading..." : "Yükleniyor..."}</p>}
 
       {pf && (
         <>
@@ -432,16 +439,16 @@ export default function Portfolio() {
           </div>
 
           {/* Pozisyonlar */}
-          <h2>Pozisyonlar</h2>
+          <h2>{en ? "Positions" : "Pozisyonlar"}</h2>
           <div className="market-table-wrapper">
             <table className="market-table">
               <thead>
                 <tr>
                   <th>Coin</th>
-                  <th>Miktar</th>
-                  <th>Ort. maliyet (USDT)</th>
-                  <th>Piyasa değeri (USDT)</th>
-                  <th>Gerçekleşmemiş K/Z (USDT)</th>
+                  <th>{en ? "Quantity" : "Miktar"}</th>
+                  <th>{en ? "Avg. Cost (USDT)" : "Ort. maliyet (USDT)"}</th>
+                  <th>{en ? "Market Value (USDT)" : "Piyasa değeri (USDT)"}</th>
+                  <th>{en ? "Unrealized PnL (USDT)" : "Gerçekleşmemiş K/Z (USDT)"}</th>
                 </tr>
               </thead>
               <tbody>
@@ -451,10 +458,14 @@ export default function Portfolio() {
                       <strong>{p.symbol.replace("USDT", "/USDT")}</strong>
                       {isDust(p) && (
                         <span
-                          title="Bu miktar borsanın minimum adımının altında, satılamaz."
+                          title={
+                            en
+                              ? "Below minimum exchange step size, cannot be sold."
+                              : "Bu miktar borsanın minimum adımının altında, satılamaz."
+                          }
                           style={{ marginLeft: 8, color: "#b45309", fontSize: 12 }}
                         >
-                          kırıntı
+                          {en ? "dust" : "kırıntı"}
                         </span>
                       )}
                     </td>
@@ -466,7 +477,7 @@ export default function Portfolio() {
                 ))}
                 {openPositions.length === 0 && (
                   <tr>
-                    <td colSpan={5}>Henüz pozisyonun yok.</td>
+                    <td colSpan={5}>{en ? "No open positions yet." : "Henüz pozisyonun yok."}</td>
                   </tr>
                 )}
               </tbody>
@@ -476,9 +487,11 @@ export default function Portfolio() {
           {/* Satılamayan kırıntılar */}
           {dustPositions.length > 0 && (
             <div style={{ ...cardStyle, marginTop: 12, borderColor: "#f59e0b" }}>
-              <strong>Satılamayan kırıntı</strong>
+              <strong>{en ? "Unsellable Dust" : "Satılamayan kırıntı"}</strong>
               <p style={{ margin: "6px 0" }}>
-                Aşağıdaki miktarlar borsanın minimum adım değerinin altında olduğu için satılamaz:
+                {en
+                  ? "The following amounts are below the exchange minimum step size and cannot be sold:"
+                  : "Aşağıdaki miktarlar borsanın minimum adım değerinin altında olduğu için satılamaz:"}
               </p>
               <ul style={{ margin: 0 }}>
                 {dustPositions.map((p) => (
@@ -495,9 +508,9 @@ export default function Portfolio() {
       {/* Pasta ve değer grafiği */}
       <div style={{ ...chartGridStyle, marginTop: 16 }}>
         <div style={{ ...cardStyle, minWidth: 0 }}>
-          <h3 style={{ marginTop: 0 }}>Varlık dağılımı</h3>
+          <h3 style={{ marginTop: 0 }}>{en ? "Asset Allocation" : "Varlık dağılımı"}</h3>
           {pieSlices.length === 0 ? (
-            <p>Gösterilecek varlık yok.</p>
+            <p>{en ? "No assets to display." : "Gösterilecek varlık yok."}</p>
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap", minHeight: 260 }}>
               <svg width="180" height="180" viewBox="0 0 180 180" style={{ flexShrink: 0 }}>
@@ -542,10 +555,12 @@ export default function Portfolio() {
         </div>
 
         <div style={{ ...cardStyle, minWidth: 0 }}>
-          <h3 style={{ marginTop: 0 }}>Portföy değeri (son 1 gün, Türkiye saati)</h3>
+          <h3 style={{ marginTop: 0 }}>
+            {en ? "Portfolio Equity (last 1 day, TRT)" : "Portföy değeri (son 1 gün, Türkiye saati)"}
+          </h3>
           {histError && <p className="order-error">{histError}</p>}
           {!histError && history.length === 0 ? (
-            <p>Henüz değer geçmişi yok.</p>
+            <p>{en ? "No equity history yet." : "Henüz değer geçmişi yok."}</p>
           ) : (
             <div ref={equityChartRef} style={{ width: "100%", height: 260 }} />
           )}
@@ -554,9 +569,9 @@ export default function Portfolio() {
 
       {/* Mum grafiği */}
       <div style={cardStyle}>
-        <h3 style={{ marginTop: 0 }}>
-          Mum grafiği{" "}
-          <select value={symbol} onChange={(e) => setSymbol(e.target.value)}>
+        <h3 style={{ marginTop: 0, display: "flex", alignItems: "center", gap: 10 }}>
+          <span>{en ? "Candlestick Chart" : "Mum grafiği"}</span>{" "}
+          <select className="select-input" value={symbol} onChange={(e) => setSymbol(e.target.value)}>
             {symbols.map((s) => (
               <option key={s} value={s}>
                 {s.replace("USDT", "/USDT")}
@@ -566,13 +581,13 @@ export default function Portfolio() {
         </h3>
         {candleError && <p className="order-error">{candleError}</p>}
         <div ref={chartRef} style={{ width: "100%", height: 320 }} />
-        <p style={{ margin: "8px 0 0", fontSize: 11, color: "#64748b", textAlign: "right" }}>
-          Grafik altyapısı:{" "}
+        <p style={{ margin: "10px 0 0", fontSize: 11, color: "#94a3b8", textAlign: "right" }}>
+          {en ? "Charting by:" : "Grafik altyapısı:"}{" "}
           <a
             href="https://www.tradingview.com/lightweight-charts/"
             target="_blank"
             rel="noreferrer"
-            style={{ color: "#2563eb" }}
+            style={{ color: "#38bdf8", textDecoration: "none" }}
           >
             TradingView Lightweight Charts™
           </a>

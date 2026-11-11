@@ -82,11 +82,12 @@ export function useLiveStream(onQuote?: (quotes: QuoteUpdate[]) => void) {
 
   useEffect(() => {
     let alive = true;
+    let hasServerStatus = false;
     // Rehber 2.5: withCredentials: true ile çerez tabanlı SSE bağlantısı
     const es = new EventSource("/api/stream", { withCredentials: true });
 
     es.onopen = () => {
-      if (alive) setStatus("Canlı bağlantı aktif");
+      if (alive && !hasServerStatus) setStatus("Canlı bağlantı aktif");
     };
 
     es.addEventListener("quote", (e) => {
@@ -105,6 +106,7 @@ export function useLiveStream(onQuote?: (quotes: QuoteUpdate[]) => void) {
       if (!alive) return;
       try {
         const s: MarketStatusEvent = JSON.parse((e as MessageEvent).data);
+        hasServerStatus = true;
         setStatus(
           s.state === "HEALTHY" ? "Canlı bağlantı aktif" : "Canlı veri alınamıyor"
         );
@@ -116,7 +118,9 @@ export function useLiveStream(onQuote?: (quotes: QuoteUpdate[]) => void) {
     });
 
     es.onerror = () => {
-      if (alive) setStatus("Bağlantı hatası");
+      if (alive && (!hasServerStatus || es.readyState === EventSource.CLOSED)) {
+        setStatus("Bağlantı hatası");
+      }
     };
 
     return () => {

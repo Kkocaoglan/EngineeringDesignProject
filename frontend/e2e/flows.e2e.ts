@@ -374,6 +374,7 @@ test.describe("Sanal Portföy Uçtan Uca (E2E) Test Akışları (Görev 2.11)", 
 
     // Çıkış yapıp tekrar giriş ekranından giriş doğrulaması
     await page.getByRole("button", { name: "Çıkış Yap" }).click();
+    await page.getByRole("link", { name: "Giriş Yap" }).first().click();
     await expect(page).toHaveURL(/\/login$/);
 
     await page.locator("#email").fill("ogrenci@ornek.edu.tr");
