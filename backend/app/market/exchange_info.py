@@ -110,7 +110,7 @@ async def sync_assets(
         payload = await fetch_exchange_info(symbols, client)
         rows = parse_asset_rows(payload, symbols)
     except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
-        if settings.market_source != "replay":
+        if settings.market_source not in ("replay", "random"):
             logger.warning(
                 "exchangeInfo alınamadı, assets tablosundaki son değerlerle devam: %r", exc
             )

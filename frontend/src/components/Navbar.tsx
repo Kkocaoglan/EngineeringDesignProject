@@ -2,7 +2,7 @@ import type { FC } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/languageContextDef";
-import { useReplayMode } from "../hooks/useLiveStream";
+import { useMarketSource } from "../hooks/useLiveStream";
 import Decimal from "decimal.js";
 
 function formatCash(val?: string) {
@@ -17,7 +17,7 @@ function formatCash(val?: string) {
 export const Navbar: FC = () => {
   const { user, logout } = useAuth();
   const { lang, setLang } = useLanguage();
-  const isReplay = useReplayMode();
+  const marketSource = useMarketSource();
   const navigate = useNavigate();
   const location = useLocation();
   const en = lang === "en";
@@ -45,8 +45,8 @@ export const Navbar: FC = () => {
 
   return (
     <header style={{ background: "#111827", borderBottom: "1px solid #1e293b" }}>
-      {/* REPLAY modu sabit turuncu uyarı bandı (Rehber 2.10) */}
-      {isReplay && (
+      {/* REPLAY / SİMÜLASYON modu sabit turuncu uyarı bandı (Rehber 2.10 & 2.15) */}
+      {marketSource !== null && marketSource !== "live" && (
         <div
           role="status"
           data-testid="replay-banner"
@@ -60,7 +60,13 @@ export const Navbar: FC = () => {
             borderBottom: "1px solid #c2410c",
           }}
         >
-          {en ? "REPLAY — recorded data, not live." : "REPLAY — kayıtlı veri, canlı değil."}
+          {marketSource === "replay"
+            ? en
+              ? "REPLAY — recorded data, not live."
+              : "REPLAY — kayıtlı veri, canlı değil."
+            : en
+              ? "SIMULATION — random prices, not live."
+              : "SİMÜLASYON — rastgele fiyat, canlı değil."}
         </div>
       )}
 
