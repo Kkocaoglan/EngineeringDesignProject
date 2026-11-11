@@ -20,34 +20,36 @@ export type MarketStatusEvent = {
   symbols_closed?: string[];
 };
 
-const REPLAY_EVENT = "replay-mode-change";
+const SOURCE_EVENT = "market-source-change";
 
-let globalReplayDetected: boolean | null = null;
+let globalMarketSource: string | null = null;
 
-export function setReplayDetected(value: boolean) {
-  if (globalReplayDetected !== value) {
-    globalReplayDetected = value;
+export function setMarketSource(value: string) {
+  if (globalMarketSource !== value) {
+    globalMarketSource = value;
     if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent(REPLAY_EVENT, { detail: value }));
+      window.dispatchEvent(new CustomEvent(SOURCE_EVENT, { detail: value }));
     }
   }
 }
 
-export function useReplayMode(): boolean {
-  const [isReplay, setIsReplay] = useState<boolean>(() => globalReplayDetected === true);
+export function useMarketSource(): string | null {
+  const [source, setSource] = useState<string | null>(() => globalMarketSource);
 
   useEffect(() => {
-    const sync = () => setIsReplay(globalReplayDetected === true);
-    window.addEventListener(REPLAY_EVENT, sync);
+    const sync = () => setSource(globalMarketSource);
+    window.addEventListener(SOURCE_EVENT, sync);
     sync();
 
     let es: EventSource | null = null;
-    if (globalReplayDetected === null) {
+    if (globalMarketSource === null) {
       es = new EventSource("/api/stream", { withCredentials: true });
       es.addEventListener("market_status", (e) => {
         try {
           const s: MarketStatusEvent = JSON.parse((e as MessageEvent).data);
-          setReplayDetected(s.source === "replay");
+          if (typeof s.source === "string") {
+            setMarketSource(s.source);
+          }
         } catch {
           /* bozuk mesaj */
         } finally {
@@ -62,12 +64,17 @@ export function useReplayMode(): boolean {
     }
 
     return () => {
-      window.removeEventListener(REPLAY_EVENT, sync);
+      window.removeEventListener(SOURCE_EVENT, sync);
       es?.close();
     };
   }, []);
 
-  return isReplay;
+  return source;
+}
+
+export function useReplayMode(): boolean {
+  const source = useMarketSource();
+  return source === "replay";
 }
 
 export function useLiveStream(onQuote?: (quotes: QuoteUpdate[]) => void) {
@@ -109,7 +116,9 @@ export function useLiveStream(onQuote?: (quotes: QuoteUpdate[]) => void) {
           s.state === "HEALTHY" ? "Canlı bağlantı aktif" : "Canlı veri alınamıyor"
         );
         setSymbolsClosed(Array.isArray(s.symbols_closed) ? s.symbols_closed : []);
-        setReplayDetected(s.source === "replay");
+        if (typeof s.source === "string") {
+          setMarketSource(s.source);
+        }
       } catch {
         /* bozuk mesaj */
       }
