@@ -10,9 +10,6 @@ export default defineConfig({
       '/api': {
         target: process.env.VITE_API_TARGET ?? 'http://localhost:8000',
         changeOrigin: true,
-        headers: {
-          origin: 'http://localhost:5173',
-        },
         rewrite: (p) => p.replace(/^\/api/, ''),
       },
     },
