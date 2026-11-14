@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Decimal from "decimal.js";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/languageContextDef";
 import { useLiveStream } from "../hooks/useLiveStream";
 
 /* ---------- Ayarlar ---------- */
@@ -162,6 +163,8 @@ function fmt(value: string | null, digits = 2) {
 
 export default function Market() {
   const { user, refreshMe } = useAuth();
+  const { lang } = useLanguage();
+  const en = lang === "en";
   const [coins, setCoins] = useState<Coin[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const [cash, setCash] = useState<string | null>(user?.cash ?? null);
@@ -295,160 +298,221 @@ export default function Market() {
   return (
     <section className="market-page">
       <div className="market-heading">
-        <h1>Piyasa</h1>
-        <p>Kripto para piyasasını canlı takip et.</p>
+        <h1>{en ? "Markets" : "Piyasa"}</h1>
+        <p>{en ? "Track the cryptocurrency market in real time." : "Kripto para piyasasını canlı takip et."}</p>
       </div>
 
       <div className="market-notice">
-        {isLive ? "🟢" : status === "Bağlanıyor..." ? "🟡" : "🔴"} Veri durumu: {status}.{" "}
-        {!isLive
-          ? "Canlı veri alınamıyor, emirler geçici olarak kapalı."
-          : "Emir vermek için tablodan bir coin seç."}
+        {isLive ? "🟢" : status === "Bağlanıyor..." ? "🟡" : "🔴"}{" "}
+        {en
+          ? `Stream status: ${isLive ? "Live connection active" : status}. ${
+              !isLive ? "Live price feed disconnected." : "Select a coin from the table to place an order."
+            }`
+          : `Veri durumu: ${status}. ${
+              !isLive ? "Canlı fiyat akışı kesildi." : "Emir vermek için tablodan bir coin seç."
+            }`}
       </div>
 
-      <div className="market-table-wrapper">
-        <table className="market-table">
-          <thead>
-            <tr>
-              <th>Coin</th>
-              <th>Alış (bid)</th>
-              <th>Satış (ask)</th>
-              <th>Spread</th>
-              <th>Son güncelleme</th>
-            </tr>
-          </thead>
-          <tbody>
-            {coins.map((coin) => {
-              const seconds =
-                coin.received_at !== null
-                  ? Math.max(0, Math.round((now - Date.parse(coin.received_at)) / 1000))
-                  : null;
-              const d = digitsOf(coin.symbol);
-              const effect = coin.dir ? `flash-${coin.dir} price-${coin.dir}` : "";
-              const coinClosed = !coin.tradeable || symbolsClosed.includes(coin.symbol);
-
-              return (
-                <tr
-                  key={coin.symbol}
-                  onClick={() => selectCoin(coin.symbol)}
-                  style={{
-                    cursor: "pointer",
-                    outline: selected === coin.symbol ? "2px solid #3b82f6" : "none",
-                  }}
-                >
-                  <td>
-                    <strong>{coin.symbol.replace("USDT", "/USDT")}</strong>
-                    <span className="market-coin-name">{NAMES[coin.symbol] ?? ""}</span>
-                    {!isLive ? (
-                      <span className="market-row-closed">Bağlantı yok — işleme kapalı</span>
-                    ) : coinClosed ? (
-                      <span className="market-row-closed">İşleme kapalı</span>
-                    ) : null}
-                  </td>
-                  <td key={`bid-${coin.tick}`} className={effect}>{fmt(coin.bid, d)}</td>
-                  <td key={`ask-${coin.tick}`} className={effect}>{fmt(coin.ask, d)}</td>
-                  <td>{fmt(coin.spread, 6)}</td>
-                  <td>
-                    {seconds === null ? "—" : `${seconds} sn önce`}
-                    {!isLive ? (
-                      <span className="market-row-closed"> (Canlı veri yok)</span>
-                    ) : coinClosed ? (
-                      <span className="market-row-closed"> (İşleme kapalı)</span>
-                    ) : null}
-                  </td>
-                </tr>
-              );
-            })}
-            {coins.length === 0 && (
+      <div className="market-grid">
+        <div className="market-table-wrapper">
+          <table className="market-table">
+            <thead>
               <tr>
-                <td colSpan={5}>Piyasa verisi yükleniyor...</td>
+                <th>Coin</th>
+                <th>{en ? "Bid (Buy)" : "Alış (bid)"}</th>
+                <th>{en ? "Ask (Sell)" : "Satış (ask)"}</th>
+                <th>Spread</th>
+                <th>{en ? "Last update" : "Son güncelleme"}</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {coins.map((coin) => {
+                const seconds =
+                  coin.received_at !== null
+                    ? Math.max(0, Math.round((now - Date.parse(coin.received_at)) / 1000))
+                    : null;
+                const d = digitsOf(coin.symbol);
+                const effect = coin.dir ? `flash-${coin.dir} price-${coin.dir}` : "";
+                const coinClosed = !coin.tradeable || symbolsClosed.includes(coin.symbol);
 
-      {selectedCoin && (
-        <div className="order-form">
-          <h2>{selectedCoin.symbol.replace("USDT", "/USDT")} emri</h2>
-
-          <div>
-            <button type="button" onClick={() => setSide("BUY")} disabled={side === "BUY"}>Al</button>
-            <button type="button" onClick={() => setSide("SELL")} disabled={side === "SELL"}>Sat</button>
-          </div>
-
-          <p>Fiyat: {fmt(livePrice, digitsOf(selectedCoin.symbol))} USDT</p>
-          <p>Bakiye: {cash === null ? "—" : fmt(cash, 2)} USDT</p>
-
-          <label>
-            Miktar{" "}
-            <input
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              inputMode="decimal"
-            />
-          </label>
-
-          {preview && (
-            <div className="order-preview">
-              <div>Miktar: {preview.qty.toFixed(preview.dec)}</div>
-              <div>Komisyon: {preview.fee.toFixed(4)} USDT</div>
-              <div>Toplam: {preview.total.toFixed(2)} USDT</div>
-              {preview.remaining !== null && (
-                <div>Kalan bakiye: {preview.remaining.toFixed(2)} USDT</div>
-              )}
-              {preview.maxQty !== null && (
-                <div>
-                  En fazla:{" "}
-                  <button
-                    type="button"
-                    onClick={() => setQuantity(preview.maxQty!.toFixed(preview.dec))}
+                return (
+                  <tr
+                    key={coin.symbol}
+                    onClick={() => selectCoin(coin.symbol)}
+                    className={selected === coin.symbol ? "row-selected" : ""}
+                    style={{
+                      cursor: "pointer",
+                    }}
                   >
-                    {preview.maxQty.toFixed(preview.dec)}
-                  </button>
-                </div>
+                    <td>
+                      <strong>{coin.symbol.replace("USDT", "/USDT")}</strong>
+                      <span className="market-coin-name">{NAMES[coin.symbol] ?? ""}</span>
+                      {!isLive ? (
+                        <span className="market-row-closed">
+                          {en ? "Offline — trading halted" : "Bağlantı yok — işleme kapalı"}
+                        </span>
+                      ) : coinClosed ? (
+                        <span className="market-row-closed">{en ? "Trading closed" : "İşleme kapalı"}</span>
+                      ) : null}
+                    </td>
+                    <td key={`bid-${coin.tick}`} className={effect}>{fmt(coin.bid, d)}</td>
+                    <td key={`ask-${coin.tick}`} className={effect}>{fmt(coin.ask, d)}</td>
+                    <td>{fmt(coin.spread, 6)}</td>
+                    <td>
+                      {seconds === null ? "—" : en ? `${seconds}s ago` : `${seconds} sn önce`}
+                      {!isLive ? (
+                        <span className="market-row-closed">
+                          {en ? " (No live data)" : " (Canlı veri yok)"}
+                        </span>
+                      ) : coinClosed ? (
+                        <span className="market-row-closed">
+                          {en ? " (Trading closed)" : " (İşleme kapalı)"}
+                        </span>
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })}
+              {coins.length === 0 && (
+                <tr>
+                  <td colSpan={5}>{en ? "Loading market data..." : "Piyasa verisi yükleniyor..."}</td>
+                </tr>
               )}
-              {preview.rounded && !preview.tooSmall && (
-                <p className="order-warning">
-                  Miktar adım değerine göre {preview.qty.toFixed(preview.dec)} olarak yuvarlandı.
-                </p>
-              )}
-              {preview.tooSmall && (
-                <p className="order-error">Miktar, en küçük adım değerinin altında.</p>
-              )}
-              {preview.insufficient && <p className="order-error">Yetersiz bakiye.</p>}
-            </div>
-          )}
-
-          {!isLive ? (
-            <p className="order-error" role="alert">
-              Canlı veri alınamıyor, emirler geçici olarak kapalı. ({status})
-            </p>
-          ) : isSelectedClosed ? (
-            <p className="order-error" role="alert">
-              Bu coin için işlem şu an kapalı.
-            </p>
-          ) : null}
-
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={
-              submitting ||
-              !isLive ||
-              !isSelectedTradeable ||
-              !preview ||
-              preview.tooSmall ||
-              preview.insufficient
-            }
-          >
-            {checking ? "Sonuç kontrol ediliyor..." : submitting ? "Gönderiliyor..." : "Emri ver"}
-          </button>
-
-          {error && <p className="order-error">{error}</p>}
-          {success && <p className="order-success">{success}</p>}
+            </tbody>
+          </table>
         </div>
-      )}
+
+        {selectedCoin && (
+          <div className="order-form">
+            <h2>
+              {selectedCoin.symbol.replace("USDT", "/USDT")} {en ? "Order" : "emri"}
+            </h2>
+
+            <div className="order-side-tabs">
+              <button
+                type="button"
+                className={`order-side-btn ${side === "BUY" ? "active-buy" : ""}`}
+                onClick={() => setSide("BUY")}
+                disabled={side === "BUY"}
+              >
+                {en ? "Buy" : "Al"}
+              </button>
+              <button
+                type="button"
+                className={`order-side-btn ${side === "SELL" ? "active-sell" : ""}`}
+                onClick={() => setSide("SELL")}
+                disabled={side === "SELL"}
+              >
+                {en ? "Sell" : "Sat"}
+              </button>
+            </div>
+
+            <p className="order-meta">
+              {en ? "Price" : "Fiyat"}: {fmt(livePrice, digitsOf(selectedCoin.symbol))} USDT
+            </p>
+            <p className="order-meta">
+              {en ? "Balance" : "Bakiye"}: {cash === null ? "—" : fmt(cash, 2)} USDT
+            </p>
+
+            <label className="order-field-label">
+              {en ? "Quantity" : "Miktar"}{" "}
+              <input
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                inputMode="decimal"
+                placeholder="0.00"
+              />
+            </label>
+
+            {preview && (
+              <div className="order-preview">
+                <div>
+                  {en ? "Quantity" : "Miktar"}: {preview.qty.toFixed(preview.dec)}
+                </div>
+                <div>
+                  {en ? "Fee" : "Komisyon"}: {preview.fee.toFixed(4)} USDT
+                </div>
+                <div>
+                  {en ? "Total" : "Toplam"}: {preview.total.toFixed(2)} USDT
+                </div>
+                {preview.remaining !== null && (
+                  <div>
+                    {en ? "Remaining balance" : "Kalan bakiye"}: {preview.remaining.toFixed(2)} USDT
+                  </div>
+                )}
+                {preview.maxQty !== null && (
+                  <div>
+                    {en ? "Max" : "En fazla"}:{" "}
+                    <button
+                      type="button"
+                      className="order-max-btn"
+                      onClick={() => setQuantity(preview.maxQty!.toFixed(preview.dec))}
+                    >
+                      {preview.maxQty.toFixed(preview.dec)}
+                    </button>
+                  </div>
+                )}
+                {preview.rounded && !preview.tooSmall && (
+                  <p className="order-warning">
+                    {en
+                      ? `Quantity rounded to ${preview.qty.toFixed(preview.dec)} per step size.`
+                      : `Miktar adım değerine göre ${preview.qty.toFixed(preview.dec)} olarak yuvarlandı.`}
+                  </p>
+                )}
+                {preview.tooSmall && (
+                  <p className="order-error">
+                    {en ? "Quantity is below minimum step size." : "Miktar, en küçük adım değerinin altında."}
+                  </p>
+                )}
+                {preview.insufficient && (
+                  <p className="order-error">{en ? "Insufficient balance." : "Yetersiz bakiye."}</p>
+                )}
+              </div>
+            )}
+
+            {!isLive ? (
+              <p className="order-error" role="alert">
+                {en
+                  ? `Live data unavailable, orders temporarily disabled. (${status})`
+                  : `Canlı veri alınamıyor, emirler geçici olarak kapalı. (${status})`}
+              </p>
+            ) : isSelectedClosed ? (
+              <p className="order-error" role="alert">
+                {en ? "Trading is currently closed for this coin." : "Bu coin için işlem şu an kapalı."}
+              </p>
+            ) : null}
+
+            <button
+              type="button"
+              className={`order-submit-btn ${side === "BUY" ? "submit-buy" : "submit-sell"}`}
+              onClick={handleSubmit}
+              disabled={
+                submitting ||
+                !isLive ||
+                !isSelectedTradeable ||
+                !preview ||
+                preview.tooSmall ||
+                preview.insufficient
+              }
+            >
+              {checking
+                ? en
+                  ? "Checking outcome..."
+                  : "Sonuç kontrol ediliyor..."
+                : submitting
+                  ? en
+                    ? "Submitting..."
+                    : "Gönderiliyor..."
+                  : en
+                    ? "Place Order"
+                    : "Emri ver"}
+            </button>
+
+            {error && <p className="order-error">{error}</p>}
+            {success && <p className="order-success">{success}</p>}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

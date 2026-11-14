@@ -1,126 +1,193 @@
+:root {
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --bg-main: #0b1120;
+  --bg-card: #131c2e;
+  --bg-card-alt: #0f172a;
+  --bg-hover: #19253d;
+  --border-subtle: #24324a;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --accent-blue: #38bdf8;
+  --color-up: #10b981;
+  --color-down: #ef4444;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-main);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+}
+
+/* ---------- Giriş & Kayıt ---------- */
 .login-page {
-  min-height: 100vh;
+  min-height: calc(100vh - 90px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  background: #0b1120;
-  color: #f8fafc;
-  font-family: Arial, sans-serif;
-  box-sizing: border-box;
+  padding: 28px 20px;
+  background: var(--bg-main);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
 }
 
 .login-card {
   width: 100%;
-  max-width: 420px;
-  padding: 32px;
-  border: 1px solid #293449;
+  max-width: 430px;
+  padding: 36px 32px;
+  border: 1px solid var(--border-subtle);
   border-radius: 18px;
-  background: #151e30;
-  box-sizing: border-box;
+  background: var(--bg-card);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
 }
 
 .login-logo {
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: #38bdf8;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #38bdf8, #0284c7);
   color: #0b1120;
-  font-weight: bold;
-  font-size: 20px;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: -0.5px;
 }
 
 .login-card h1 {
-  margin: 24px 0 8px;
-  font-size: 28px;
+  margin: 20px 0 6px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
 }
 
 .login-subtitle {
-  color: #aab7cc;
-  margin-bottom: 28px;
+  color: var(--text-secondary);
+  margin: 0 0 26px;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .login-card form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .login-card label {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
+  color: #cbd5e1;
 }
 
 .login-card input {
   width: 100%;
-  box-sizing: border-box;
-  padding: 13px;
-  border: 1px solid #3a4860;
-  border-radius: 9px;
-  background: #0b1120;
-  color: white;
-  font-size: 15px;
-  margin-bottom: 8px;
+  padding: 12px 14px;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  background: var(--bg-card-alt);
+  color: var(--text-primary);
+  font-size: 14px;
+  margin-bottom: 6px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.login-card input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
 }
 
 .login-card button {
   margin-top: 8px;
-  padding: 14px;
+  padding: 13px;
   border: none;
-  border-radius: 9px;
-  background: #38bdf8;
-  color: #0b1120;
-  font-weight: bold;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
+  color: #ffffff;
+  font-weight: 700;
   font-size: 15px;
   cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 140, 255, 0.32);
+  transition: filter 0.15s ease, transform 0.1s ease;
 }
 
-.login-card button:hover {
-  background: #7dd3fc;
+.login-card button:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.login-card button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .login-footer {
   text-align: center;
-  color: #aab7cc;
+  color: var(--text-secondary);
   font-size: 14px;
-  margin-top: 24px;
+  margin-top: 22px;
 }
 
 .login-card a {
-  color: #38bdf8;
+  color: var(--accent-blue);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.login-card a:hover {
+  text-decoration: underline;
 }
 
 .login-warning {
-  border-top: 1px solid #293449;
+  border-top: 1px solid var(--border-subtle);
   padding-top: 16px;
-  margin-top: 24px;
-  color: #aab7cc;
+  margin-top: 22px;
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.6;
 }
 
+/* ---------- Ortak Sayfa Düzeni (Piyasa, Portföy, Geçmiş) ---------- */
 .market-page {
-  color: #f8fafc;
-  font-family: Arial, sans-serif;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 28px 24px 56px;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
 }
 
 .market-heading {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
 .market-heading h1 {
-  margin-bottom: 8px;
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
 }
 
 .market-heading p {
-  color: #aab7cc;
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 14px;
 }
 
 .market-status {
@@ -129,45 +196,80 @@
 }
 
 .market-notice {
-  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
   margin-bottom: 20px;
-  border: 1px solid #66521c;
-  border-radius: 10px;
-  background: #292313;
-  color: #fde68a;
-  font-size: 14px;
+  border: 1px solid #24324a;
+  border-radius: 12px;
+  background: #111a2c;
+  color: #cbd5e1;
+  font-size: 13.5px;
 }
 
+/* ---------- Piyasa İki Kolonlu Borsa Düzeni ---------- */
+.market-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .market-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Tablolar ---------- */
 .market-table-wrapper {
   width: 100%;
   overflow-x: auto;
-  border: 1px solid #293449;
-  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  background: var(--bg-card);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
 .market-table {
   width: 100%;
-  min-width: 650px;
+  min-width: 600px;
   border-collapse: collapse;
   text-align: left;
+  font-variant-numeric: tabular-nums;
 }
 
 .market-table th,
 .market-table td {
-  padding: 16px;
-  border-bottom: 1px solid #293449;
+  padding: 15px 18px;
+  border-bottom: 1px solid #1e293b;
   white-space: nowrap;
 }
 
 .market-table th {
-  background: #151e30;
-  color: #aab7cc;
-  font-size: 13px;
+  background: #162136;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
 }
 
 .market-table td {
-  background: #0f1929;
+  background: transparent;
   font-size: 14px;
+}
+
+.market-table tbody tr {
+  transition: background-color 0.12s ease;
+}
+
+.market-table tbody tr:hover td {
+  background: rgba(56, 189, 248, 0.04);
+}
+
+.market-table tbody tr.row-selected td {
+  background: rgba(56, 189, 248, 0.09);
 }
 
 .market-table tbody tr:last-child td {
@@ -176,51 +278,434 @@
 
 .market-coin-name {
   display: block;
-  margin-top: 5px;
-  color: #aab7cc;
+  margin-top: 3px;
+  color: var(--text-secondary);
   font-size: 12px;
+  font-weight: 400;
 }
 
 .market-row-closed {
   display: inline-block;
   margin-top: 4px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: rgba(239, 68, 68, 0.14);
   color: #f87171;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
 }
 
-.price-up { color: #16a34a; }
-.price-down { color: #dc2626; }
+.price-up {
+  color: var(--color-up);
+  font-weight: 600;
+}
 
-.flash-up { animation: flashUp 0.7s ease-out; }
-.flash-down { animation: flashDown 0.7s ease-out; }
+.price-down {
+  color: var(--color-down);
+  font-weight: 600;
+}
+
+.flash-up {
+  animation: flashUp 0.7s ease-out;
+}
+
+.flash-down {
+  animation: flashDown 0.7s ease-out;
+}
 
 @keyframes flashUp {
-  from { background-color: rgba(34, 197, 94, 0.35); }
-  to { background-color: transparent; }
-}
-@keyframes flashDown {
-  from { background-color: rgba(239, 68, 68, 0.35); }
-  to { background-color: transparent; }
+  from {
+    background-color: rgba(16, 185, 129, 0.25);
+  }
+  to {
+    background-color: transparent;
+  }
 }
 
+@keyframes flashDown {
+  from {
+    background-color: rgba(239, 68, 68, 0.25);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+/* ---------- Emir Formu (Borsa Al/Sat Kartı) ---------- */
 .order-form {
-  margin-top: 24px;
-  padding: 16px;
-  border: 1px solid #cbd5e1;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #0f172a;
+  padding: 22px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.25);
+  font-variant-numeric: tabular-nums;
 }
-.order-form h2 { color: #0f172a; margin-top: 0; }
+
+.order-form h2 {
+  color: var(--text-primary);
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+
+.order-side-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 4px;
+  background: var(--bg-card-alt);
+  border-radius: 10px;
+  border: 1px solid #1e293b;
+  margin-bottom: 16px;
+}
+
+.order-side-btn {
+  padding: 9px 12px;
+  border: none;
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+}
+
+.order-side-btn:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.order-side-btn.active-buy {
+  background: var(--color-up);
+  color: #06281e;
+  cursor: default;
+}
+
+.order-side-btn.active-sell {
+  background: var(--color-down);
+  color: #ffffff;
+  cursor: default;
+}
+
+.order-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--bg-card-alt);
+  border: 1px solid #1e293b;
+  margin-bottom: 16px;
+}
+
+.order-meta p {
+  margin: 0;
+  font-size: 13.5px;
+  color: #cbd5e1;
+  display: flex;
+  justify-content: space-between;
+}
+
+.order-field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #cbd5e1;
+  margin-bottom: 14px;
+}
+
 .order-form input {
-  padding: 6px 10px;
-  border: 1px solid #94a3b8;
-  border-radius: 6px;
-  background: #fff;
-  color: #0f172a;
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid #334155;
+  border-radius: 9px;
+  background: var(--bg-card-alt);
+  color: var(--text-primary);
+  font-size: 15px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.order-form button { margin: 4px 6px 4px 0; }
-.order-warning { color: #b45309; }
-.order-error { color: #dc2626; }
-.order-success { color: #16a34a; }
+
+.order-form input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+}
+
+.order-preview {
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid #1e293b;
+  font-size: 13px;
+  color: #cbd5e1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.order-max-btn {
+  padding: 2px 8px;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 5px;
+  background: rgba(56, 189, 248, 0.1);
+  color: var(--accent-blue);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.order-max-btn:hover {
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.order-submit-btn {
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+.order-submit-btn.submit-buy {
+  background: var(--color-up);
+  color: #052e16;
+}
+
+.order-submit-btn.submit-sell {
+  background: var(--color-down);
+  color: #ffffff;
+}
+
+.order-submit-btn:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.order-submit-btn:disabled {
+  background: #293548;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.order-warning {
+  color: #fbbf24;
+  font-size: 12.5px;
+  margin: 4px 0 0;
+}
+
+.order-error {
+  color: #f87171;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 8px 0;
+}
+
+.order-success {
+  color: #34d399;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 10px 0 0;
+  line-height: 1.45;
+}
+
+/* ---------- İkincil Butonlar ve Seçim Kutuları (Geçmiş & Portföy) ---------- */
+.btn-secondary {
+  padding: 9px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: #38bdf8;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.select-input {
+  margin-left: 8px;
+  padding: 6px 12px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: var(--bg-card-alt);
+  color: var(--text-primary);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.select-input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+}
+
+/* ---------- Landing / Karşılama Sayfası (TradingView & Robinhood stili) ---------- */
+.landing-page {
+  min-height: calc(100vh - 100px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 24px 72px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(0, 162, 255, 0.15), transparent 55%),
+    radial-gradient(circle at 80% 20%, rgba(56, 189, 248, 0.10), transparent 45%);
+}
+
+.landing-hero {
+  max-width: 840px;
+  width: 100%;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.landing-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid #24324a;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  margin-bottom: 28px;
+}
+
+.landing-badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #00dc82;
+  box-shadow: 0 0 10px #00dc82;
+}
+
+.landing-title {
+  margin: 0 0 22px;
+  font-size: clamp(36px, 5.5vw, 62px);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  color: #f8fafc;
+}
+
+.landing-title span {
+  background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.landing-subtitle {
+  margin: 0 auto 36px;
+  max-width: 620px;
+  font-size: 17.5px;
+  line-height: 1.65;
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.landing-subtitle strong {
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.landing-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 56px;
+}
+
+.landing-btn-primary {
+  background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
+  color: #ffffff;
+  text-decoration: none;
+  padding: 14px 34px;
+  border-radius: 999px;
+  font-size: 15.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  box-shadow: 0 6px 20px rgba(0, 140, 255, 0.38);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.landing-btn-primary:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.landing-btn-secondary {
+  background: rgba(30, 41, 59, 0.7);
+  color: #f8fafc;
+  border: 1px solid #334155;
+  text-decoration: none;
+  padding: 14px 28px;
+  border-radius: 999px;
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.landing-btn-secondary:hover {
+  background: #1e293b;
+  border-color: #64748b;
+}
+
+.landing-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  padding-top: 32px;
+  border-top: 1px solid #1e293b;
+  text-align: left;
+}
+
+@media (max-width: 680px) {
+  .landing-stats {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+}
+
+.landing-stat-item {
+  background: rgba(19, 28, 46, 0.65);
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.landing-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.landing-stat-label {
+  font-size: 13px;
+  color: #94a3b8;
+}

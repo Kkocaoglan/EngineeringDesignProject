@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/languageContextDef";
 import { ApiError } from "../api/client";
 
 export default function Register() {
@@ -11,6 +12,8 @@ export default function Register() {
   const [error, setError] = useState("");
 
   const { register, login } = useAuth();
+  const { lang } = useLanguage();
+  const en = lang === "en";
   const navigate = useNavigate();
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -18,12 +21,12 @@ export default function Register() {
     setError("");
 
     if (password.length < 8) {
-      setError("Şifre en az 8 karakter olmalıdır.");
+      setError(en ? "Password must be at least 8 characters." : "Şifre en az 8 karakter olmalıdır.");
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("Şifreler birbiriyle eşleşmiyor.");
+      setError(en ? "Passwords do not match." : "Şifreler birbiriyle eşleşmiyor.");
       return;
     }
 
@@ -39,7 +42,11 @@ export default function Register() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError("Kayıt olunurken bir hata oluştu. Lütfen tekrar deneyin.");
+        setError(
+          en
+            ? "An error occurred while signing up. Please try again."
+            : "Kayıt olunurken bir hata oluştu. Lütfen tekrar deneyin."
+        );
       }
     } finally {
       setLoading(false);
@@ -51,28 +58,28 @@ export default function Register() {
       <section className="login-card">
         <div className="login-logo">SP</div>
 
-        <h1>Hesap Oluştur</h1>
+        <h1>{en ? "Create Account" : "Hesap Oluştur"}</h1>
         <p className="login-subtitle">
-          Sanal Portföy'e katıl ve piyasayı takip et.
+          {en ? "Join Virtual Portfolio and track the market." : "Sanal Portföy'e katıl ve piyasayı takip et."}
         </p>
 
         <form onSubmit={handleSubmit}>
-          <label htmlFor="register-email">E-posta</label>
+          <label htmlFor="register-email">{en ? "Email" : "E-posta"}</label>
           <input
             id="register-email"
             type="email"
-            placeholder="ornek@mail.com"
+            placeholder={en ? "you@example.com" : "ornek@mail.com"}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             disabled={loading}
             required
           />
 
-          <label htmlFor="register-password">Şifre</label>
+          <label htmlFor="register-password">{en ? "Password" : "Şifre"}</label>
           <input
             id="register-password"
             type="password"
-            placeholder="En az 8 karakter"
+            placeholder={en ? "At least 8 characters" : "En az 8 karakter"}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             minLength={8}
@@ -80,11 +87,11 @@ export default function Register() {
             required
           />
 
-          <label htmlFor="confirm-password">Şifre Tekrar</label>
+          <label htmlFor="confirm-password">{en ? "Confirm Password" : "Şifre Tekrar"}</label>
           <input
             id="confirm-password"
             type="password"
-            placeholder="Şifreni tekrar gir"
+            placeholder={en ? "Re-enter your password" : "Şifreni tekrar gir"}
             value={confirmPassword}
             onChange={(event) => setConfirmPassword(event.target.value)}
             disabled={loading}
@@ -98,17 +105,19 @@ export default function Register() {
           )}
 
           <button type="submit" disabled={loading}>
-            {loading ? "Kayıt olunuyor..." : "Kayıt Ol"}
+            {loading ? (en ? "Signing up..." : "Kayıt olunuyor...") : en ? "Sign Up" : "Kayıt Ol"}
           </button>
         </form>
 
         <p className="login-footer">
-          Zaten hesabın var mı? <Link to="/login">Giriş Yap</Link>
+          {en ? "Already have an account?" : "Zaten hesabın var mı?"}{" "}
+          <Link to="/login">{en ? "Log In" : "Giriş Yap"}</Link>
         </p>
 
         <p className="login-warning">
-          Sanal bakiye — gerçek para ve varlık yoktur.
-          Yatırım tavsiyesi değildir.
+          {en
+            ? "Virtual balance — no real money or assets. Not investment advice."
+            : "Sanal bakiye — gerçek para ve varlık yoktur. Yatırım tavsiyesi değildir."}
         </p>
       </section>
     </main>

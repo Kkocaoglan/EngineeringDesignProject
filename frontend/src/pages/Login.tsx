@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/languageContextDef";
 import { ApiError } from "../api/client";
 
 export default function Login() {
@@ -10,6 +11,8 @@ export default function Login() {
   const [error, setError] = useState("");
 
   const { login } = useAuth();
+  const { lang } = useLanguage();
+  const en = lang === "en";
   const navigate = useNavigate();
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -24,7 +27,11 @@ export default function Login() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError("Giriş yapılırken bir hata oluştu. Lütfen tekrar deneyin.");
+        setError(
+          en
+            ? "An error occurred while logging in. Please try again."
+            : "Giriş yapılırken bir hata oluştu. Lütfen tekrar deneyin."
+        );
       }
     } finally {
       setLoading(false);
@@ -36,28 +43,28 @@ export default function Login() {
       <section className="login-card">
         <div className="login-logo">SP</div>
 
-        <h1>Sanal Portföy</h1>
+        <h1>{en ? "Virtual Portfolio" : "Sanal Portföy"}</h1>
         <p className="login-subtitle">
-          Hesabına giriş yap ve piyasayı takip et.
+          {en ? "Log in to your account and track the market." : "Hesabına giriş yap ve piyasayı takip et."}
         </p>
 
         <form onSubmit={handleSubmit}>
-          <label htmlFor="email">E-posta</label>
+          <label htmlFor="email">{en ? "Email" : "E-posta"}</label>
           <input
             id="email"
             type="email"
-            placeholder="ornek@mail.com"
+            placeholder={en ? "you@example.com" : "ornek@mail.com"}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             disabled={loading}
             required
           />
 
-          <label htmlFor="password">Şifre</label>
+          <label htmlFor="password">{en ? "Password" : "Şifre"}</label>
           <input
             id="password"
             type="password"
-            placeholder="Şifreni gir"
+            placeholder={en ? "Enter your password" : "Şifreni gir"}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             disabled={loading}
@@ -71,17 +78,19 @@ export default function Login() {
           )}
 
           <button type="submit" disabled={loading}>
-            {loading ? "Giriş yapılıyor..." : "Giriş Yap"}
+            {loading ? (en ? "Logging in..." : "Giriş yapılıyor...") : en ? "Log In" : "Giriş Yap"}
           </button>
         </form>
 
         <p className="login-footer">
-          Hesabın yok mu? <Link to="/register">Kayıt Ol</Link>
+          {en ? "Don't have an account?" : "Hesabın yok mu?"}{" "}
+          <Link to="/register">{en ? "Sign Up" : "Kayıt Ol"}</Link>
         </p>
 
         <p className="login-warning">
-          Sanal bakiye — gerçek para ve varlık yoktur.
-          Yatırım tavsiyesi değildir.
+          {en
+            ? "Virtual balance — no real money or assets. Not investment advice."
+            : "Sanal bakiye — gerçek para ve varlık yoktur. Yatırım tavsiyesi değildir."}
         </p>
       </section>
     </main>
